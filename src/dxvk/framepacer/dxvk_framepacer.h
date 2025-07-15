@@ -2,6 +2,7 @@
 
 #include "dxvk_framepacer_mode.h"
 #include "dxvk_latency_markers.h"
+#include "dxvk_latency_stats.h"
 #include "../dxvk_latency.h"
 #include "../../util/util_time.h"
 #include <dxgi.h>
@@ -41,6 +42,7 @@ namespace dxvk {
       m_latencyMarkersStorage.registerFrameEnd(frameId);
       m_mode->endFrame(frameId);
       m_gpuStarts[ (frameId-1) % m_gpuStarts.size() ].store(0);
+      trackStats(frameId);
     }
 
     void notifyCsRenderBegin( uint64_t frameId ) override {
@@ -149,6 +151,16 @@ namespace dxvk {
     DxvkLatencyStats getStatistics( uint64_t frameId ) override
       { return DxvkLatencyStats(); }
 
+
+    // non-overriding methods
+
+
+    const LatencyStats* getGpuBufferStats() const
+      { return &m_gpuBufferStats; }
+
+    const LatencyStats* getPresentStats() const
+      { return &m_presentationStats; }
+
   private:
 
     void signalGpuStart( uint64_t frameId, LatencyMarkers* m, const high_resolution_clock::time_point& t ) {
@@ -171,11 +183,36 @@ namespace dxvk {
         signalGpuStart( frameId, m, t );
     }
 
+    void trackStats( uint64_t frameId ) {
+      if (!m_trackStats)
+        return;
+
+      const LatencyMarkers* m = m_latencyMarkersStorage.getConstMarkers(frameId);
+      m_presentationStats.push( m->end, m->presentFinished - m->gpuFinished );
+
+      int64_t minDiff = std::numeric_limits<int64_t>::max();
+      size_t i = 0;
+      while (m->gpuSubmit.size() > i && m->gpuReady.size() > i) {
+        int64_t diff = std::chrono::duration_cast<microseconds>(
+          m->gpuReady[i] - m->gpuSubmit[i]).count();
+        diff = std::max( (int64_t) 0, diff );
+        minDiff = std::min( minDiff, diff );
+        ++i;
+      }
+
+      if (minDiff != std::numeric_limits<int64_t>::max())
+        m_gpuBufferStats.push( m->end, minDiff );
+    }
+
     std::unique_ptr<FramePacerMode> m_mode;
 
     std::array< std::atomic< uint16_t >, 8 > m_gpuStarts = { };
     static constexpr uint16_t queueSubmitBit = 1;
     static constexpr uint16_t gpuReadyBit    = 2;
+
+    const bool   m_trackStats = { true };
+    LatencyStats m_gpuBufferStats;
+    LatencyStats m_presentationStats;
 
   };
 

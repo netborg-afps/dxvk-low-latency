@@ -1,7 +1,7 @@
 #pragma once
 
 #include "dxvk_framepacer_mode.h"
-#include "dxvk_presentation_stats.h"
+#include "dxvk_latency_stats.h"
 #include "../dxvk_options.h"
 #include "../../util/log/log.h"
 #include "../../util/util_string.h"
@@ -46,7 +46,8 @@ namespace dxvk {
     LowLatencyMode(Mode mode, LatencyMarkersStorage* storage, const DxvkOptions& options, int refreshRate = 0)
     : FramePacerMode(mode, storage),
       m_lowLatencyOffset(getLowLatencyOffset(options)),
-      m_allowCpuFramesOverlap(options.lowLatencyAllowCpuFramesOverlap) {
+      m_allowCpuFramesOverlap(options.lowLatencyAllowCpuFramesOverlap),
+      m_presentationStats(5000) {
       Logger::info( str::format("Using lowLatencyOffset: ", m_lowLatencyOffset) );
       Logger::info( str::format("Using lowLatencyAllowCpuFramesOverlap: ", m_allowCpuFramesOverlap) );
 
@@ -348,7 +349,7 @@ namespace dxvk {
 
     Sleep::TimePoint m_lastStart = { high_resolution_clock::now() };
     int32_t m_vrrRefreshInterval = { 0 };
-    PresentationStats m_presentationStats;
+    LatencyStats m_presentationStats;
 
     std::array<SyncProps, 16> m_props;
     std::atomic<uint64_t> m_propsFinished = { 0 };

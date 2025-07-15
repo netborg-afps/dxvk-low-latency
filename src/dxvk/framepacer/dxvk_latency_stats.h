@@ -11,11 +11,13 @@
 
 namespace dxvk {
 
-  class PresentationStats {
+  class LatencyStats {
 
   public:
 
     using time_point = high_resolution_clock::time_point;
+
+    LatencyStats( int32_t duration_ms ) : m_duration(duration_ms) { }
 
     void push( time_point t, int32_t latency ) {
 
@@ -32,7 +34,7 @@ namespace dxvk {
 
       // remove old items from the queue
       while (!m_queue.empty() && m_queue.front().timeStamp
-        < high_resolution_clock::now() - std::chrono::milliseconds(5000) ) {
+        < high_resolution_clock::now() - std::chrono::milliseconds(m_duration) ) {
         index = getBucketIndex(m_queue.front().latency);
         --m_buckets[index];
         --m_numLatencies;
@@ -78,14 +80,14 @@ namespace dxvk {
 
   private:
 
-    int getBucketIndex( int32_t latency ) {
+    int getBucketIndex( int32_t latency ) const {
       assert( latency >= 0 );
       size_t index = latency / 8;
       return std::min( m_buckets.size()-1, index );
     }
 
-    // if presents take longer than 5 ms, we probably have a problem?
     constexpr static int32_t maxLatency = 5000;
+    const int32_t m_duration;
 
     std::array< std::atomic<int64_t>, 1+(maxLatency / 8) > m_buckets = { };
     std::atomic< int64_t > m_numLatencies = { 0 };
