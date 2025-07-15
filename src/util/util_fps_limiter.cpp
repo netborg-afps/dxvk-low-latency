@@ -12,8 +12,6 @@
 using namespace std::chrono_literals;
 
 namespace dxvk {
-
-  std::atomic<bool> FpsLimiter::m_isActive = { false };
   
   FpsLimiter::FpsLimiter() {
     auto override = getEnvironmentOverride();
@@ -83,6 +81,7 @@ namespace dxvk {
 
     if (t1 < m_nextFrame) {
       m_isActive.store(true);
+      m_lastActive.store(high_resolution_clock::now());
       Sleep::sleepUntil(t1, m_nextFrame);
     }
 

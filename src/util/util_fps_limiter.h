@@ -48,7 +48,9 @@ namespace dxvk {
      */
     static std::optional<double> getEnvironmentOverride();
 
-    static std::atomic<bool> m_isActive;
+    inline static std::atomic<bool> m_isActive = { false };
+    inline static std::atomic<high_resolution_clock::time_point>
+      m_lastActive = { high_resolution_clock::now() };
 
   private:
 

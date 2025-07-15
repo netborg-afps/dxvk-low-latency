@@ -122,6 +122,7 @@ dxvk_src = [
   'hud/dxvk_hud.cpp',
   'hud/dxvk_hud_font.cpp',
   'hud/dxvk_hud_item.cpp',
+  'hud/dxvk_hud_item_latency.cpp',
   'hud/dxvk_hud_renderer.cpp',
 
   'framepacer/dxvk_framepacer.cpp',
