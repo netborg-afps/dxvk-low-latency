@@ -127,33 +127,42 @@ namespace dxvk::hud {
     if (!framePacer)
       return;
 
+    if (!framePacer->m_enableGpuBufferTracking)
+      framePacer->m_enableGpuBufferTracking.store(true);
+    if (!framePacer->m_enableVSyncBufferTracking && framePacer->getFramePacerMode()->getPresentMode() == VK_PRESENT_MODE_FIFO_KHR)
+      framePacer->m_enableVSyncBufferTracking.store(true);
+
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(time - m_lastUpdate);
 
     if (elapsed.count() >= UpdateInterval) {
       m_lastUpdate = time;
 
       const LatencyStats* gpuBufferStats = framePacer->getGpuBufferStats();
-      int32_t p50 = gpuBufferStats->getPercentile(0.5);
-      int32_t p75 = gpuBufferStats->getPercentile(0.75);
-      int32_t p95 = gpuBufferStats->getPercentile(0.95);
-      int32_t p99 = gpuBufferStats->getPercentile(0.99);
-      m_gpuP50 = str::format(p50);
-      m_gpuP75 = str::format(p75);
-      m_gpuP95 = str::format(p95);
-      m_gpuP99 = str::format(p99);
+      if (gpuBufferStats) {
+        int32_t p50 = gpuBufferStats->getPercentile(0.5);
+        int32_t p75 = gpuBufferStats->getPercentile(0.75);
+        int32_t p95 = gpuBufferStats->getPercentile(0.95);
+        int32_t p99 = gpuBufferStats->getPercentile(0.99);
+        m_gpuP50 = str::format(p50);
+        m_gpuP75 = str::format(p75);
+        m_gpuP95 = str::format(p95);
+        m_gpuP99 = str::format(p99);
+      }
 
       if (framePacer->getFramePacerMode()->getPresentMode() == VK_PRESENT_MODE_FIFO_KHR
         && (framePacer->getMode() || std::chrono::duration_cast<std::chrono::milliseconds>(
           high_resolution_clock::now() - FpsLimiter::m_lastActive.load()).count() > 3000) ) {
         const LatencyStats* presentStats = framePacer->getPresentStats();
-        p50 = presentStats->getPercentile(0.5);
-        p75 = presentStats->getPercentile(0.75);
-        p95 = presentStats->getPercentile(0.95);
-        p99 = presentStats->getPercentile(0.99);
-        m_presentP50 = str::format(p50);
-        m_presentP75 = str::format(p75);
-        m_presentP95 = str::format(p95);
-        m_presentP99 = str::format(p99);
+        if (presentStats) {
+          int32_t p50 = presentStats->getPercentile(0.5);
+          int32_t p75 = presentStats->getPercentile(0.75);
+          int32_t p95 = presentStats->getPercentile(0.95);
+          int32_t p99 = presentStats->getPercentile(0.99);
+          m_presentP50 = str::format(p50);
+          m_presentP75 = str::format(p75);
+          m_presentP95 = str::format(p95);
+          m_presentP99 = str::format(p99);
+        }
       } else {
         m_presentP50 = "";
       }

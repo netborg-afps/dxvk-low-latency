@@ -156,10 +156,13 @@ namespace dxvk {
 
 
     const LatencyStats* getGpuBufferStats() const
-      { return &m_gpuBufferStats; }
+      { return m_gpuBufferStats.load(); }
 
     const LatencyStats* getPresentStats() const
-      { return &m_presentationStats; }
+      { return m_presentationStats.load(); }
+
+    std::atomic< bool > m_enableGpuBufferTracking = { false };
+    std::atomic< bool > m_enableVSyncBufferTracking = { false };
 
   private:
 
@@ -184,24 +187,31 @@ namespace dxvk {
     }
 
     void trackStats( uint64_t frameId ) {
-      if (!m_trackStats)
-        return;
-
       const LatencyMarkers* m = m_latencyMarkersStorage.getConstMarkers(frameId);
-      m_presentationStats.push( m->end, m->presentFinished - m->gpuFinished );
 
-      int64_t minDiff = std::numeric_limits<int64_t>::max();
-      size_t i = 0;
-      while (m->gpuSubmit.size() > i && m->gpuReady.size() > i) {
-        int64_t diff = std::chrono::duration_cast<microseconds>(
-          m->gpuReady[i] - m->gpuSubmit[i]).count();
-        diff = std::max( (int64_t) 0, diff );
-        minDiff = std::min( minDiff, diff );
-        ++i;
+      if (m_enableVSyncBufferTracking) {
+        if (!m_presentationStats)
+          m_presentationStats.store( new LatencyStats(3000) );
+        m_presentationStats.load()->push( m->end, m->presentFinished - m->gpuFinished );
       }
 
-      if (minDiff != std::numeric_limits<int64_t>::max())
-        m_gpuBufferStats.push( m->end, minDiff );
+      if (m_enableGpuBufferTracking) {
+        if (!m_gpuBufferStats)
+          m_gpuBufferStats.store( new LatencyStats(3000) );
+
+        int64_t minDiff = std::numeric_limits<int64_t>::max();
+        size_t i = 0;
+        while (m->gpuSubmit.size() > i && m->gpuReady.size() > i) {
+          int64_t diff = std::chrono::duration_cast<microseconds>(
+            m->gpuReady[i] - m->gpuSubmit[i]).count();
+          diff = std::max( (int64_t) 0, diff );
+          minDiff = std::min( minDiff, diff );
+          ++i;
+        }
+
+        if (minDiff != std::numeric_limits<int64_t>::max())
+          m_gpuBufferStats.load()->push( m->end, minDiff );
+      }
     }
 
     std::unique_ptr<FramePacerMode> m_mode;
@@ -210,9 +220,8 @@ namespace dxvk {
     static constexpr uint16_t queueSubmitBit = 1;
     static constexpr uint16_t gpuReadyBit    = 2;
 
-    const bool   m_trackStats = { true };
-    LatencyStats m_gpuBufferStats;
-    LatencyStats m_presentationStats;
+    std::atomic<LatencyStats*> m_gpuBufferStats = { nullptr };
+    std::atomic<LatencyStats*> m_presentationStats = { nullptr };
 
   };
 

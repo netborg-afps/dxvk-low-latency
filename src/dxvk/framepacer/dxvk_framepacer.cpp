@@ -13,13 +13,11 @@ namespace dxvk {
   }
 
 
-  FramePacer::FramePacer( const DxvkOptions& options, uint64_t firstFrameId )
-  : m_gpuBufferStats(3000), m_presentationStats(3000) {
-    // we'll default to LOW_LATENCY in the draft-PR for now, for demonstration purposes,
-    // highlighting the generally much better input lag and medium-term time consistency.
-    // although MAX_FRAME_LATENCY has advantages in many games and is likely the better default,
-    // for its higher fps throughput and less susceptibility to short-term time inconsistencies.
-    // which mode being smoother depends on the game.
+  FramePacer::FramePacer( const DxvkOptions& options, uint64_t firstFrameId ) {
+    // We'll default to LOW_LATENCY in the draft-PR for now, for demonstration purposes,
+    // highlighting the generally much better input lag and time consistency.
+    // MAX_FRAME_LATENCY has advantages in some games that provide inconsistent
+    // cpu frametimes and is tuned for highest fps which can be relevant in benchmarks.
     FramePacerMode::Mode mode = FramePacerMode::LOW_LATENCY;
     int refreshRate = 0;
 
@@ -98,6 +96,9 @@ namespace dxvk {
   }
 
 
-  FramePacer::~FramePacer() {}
+  FramePacer::~FramePacer() {
+    delete m_presentationStats.load();
+    delete m_gpuBufferStats.load();
+  }
 
 }
