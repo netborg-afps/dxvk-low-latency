@@ -9,6 +9,8 @@
 #include "../../util/util_time.h"
 #include "../../util/sync/sync_ringbuffer_allocator.h"
 
+#include "benchmark.h"
+
 
 namespace dxvk {
 
@@ -48,6 +50,20 @@ namespace dxvk {
       m_frameSync.signalFrameFinished(frameId);
       m_gpuStarts[ (frameId-1) % m_gpuStarts.size() ].store(0);
       trackStats(frameId);
+
+      { if (frameId <= m_mode->getFirstFrameId()+2)
+          return;
+
+        const LatencyMarkers* m = m_latencyMarkersStorage.getConstMarkers(frameId);
+        const LatencyMarkers* m_prev = m_latencyMarkersStorage.getConstMarkers(frameId-1);
+
+        BenchmarkInfo info {};
+        info.frameTimeStart = std::chrono::duration_cast<microseconds>( m->start - m_prev->start ).count();
+        info.frameTimeEnd = std::chrono::duration_cast<microseconds>( m->end - m_prev->end ).count();
+        info.latency = m->gpuFinished;
+
+        bench.pushFrame( info );
+      }
     }
 
     void notifyCsRenderBegin( uint64_t frameId ) override {
@@ -266,6 +282,8 @@ namespace dxvk {
 
     CalibratedDeviceTimestamps m_calibratedDeviceTimestamps;
     sync::RingbufferAllocator<VkQueryPool, 256> m_queryPools;
+
+    Benchmark bench = { "aaa_benchmark.bin" };
 
   };
 
