@@ -2,6 +2,7 @@
 
 #include "dxvk_framepacer_mode.h"
 #include "dxvk_latency_stats.h"
+#include "dxvk_gpu_progress.h"
 #include "../dxvk_options.h"
 #include "../../util/log/log.h"
 #include "../../util/util_string.h"
