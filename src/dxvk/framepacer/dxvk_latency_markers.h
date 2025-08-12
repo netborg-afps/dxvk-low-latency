@@ -1,7 +1,6 @@
 #pragma once
 
 #include <atomic>
-#include <dxgi.h>
 #include <vector>
 #include <array>
 #include <assert.h>
@@ -42,10 +41,10 @@ namespace dxvk {
    */
   struct LatencyMarkersTimeline {
 
-    std::atomic<uint64_t> cpuFinished   = { DXGI_MAX_SWAP_CHAIN_BUFFERS };
-    std::atomic<uint64_t> gpuStart      = { DXGI_MAX_SWAP_CHAIN_BUFFERS };
-    std::atomic<uint64_t> gpuFinished   = { DXGI_MAX_SWAP_CHAIN_BUFFERS };
-    std::atomic<uint64_t> frameFinished = { DXGI_MAX_SWAP_CHAIN_BUFFERS };
+    std::atomic<uint64_t> cpuFinished   = { 0 };
+    std::atomic<uint64_t> gpuStart      = { 0 };
+    std::atomic<uint64_t> gpuFinished   = { 0 };
+    std::atomic<uint64_t> frameFinished = { 0 };
 
   };
 
@@ -70,7 +69,8 @@ namespace dxvk {
     friend class FramePacer;
   public:
 
-    LatencyMarkersStorage() { }
+    LatencyMarkersStorage( uint64_t firstFrameId )
+    : m_firstFrameId(firstFrameId) { }
     ~LatencyMarkersStorage() { }
 
     LatencyMarkersReader getReader( uint32_t numEntries ) const {
@@ -121,6 +121,7 @@ namespace dxvk {
     // simple modulo hash mapping is used for frameIds. They are expected to monotonically increase by one.
     // select the size large enough, so we never come into a situation where the reader cannot keep up with the producer
     static constexpr uint16_t m_numMarkers = 128;
+    const uint64_t m_firstFrameId;
     std::array<LatencyMarkers, m_numMarkers> m_markers = { };
     LatencyMarkersTimeline m_timeline;
 
@@ -131,7 +132,7 @@ namespace dxvk {
   inline LatencyMarkersReader::LatencyMarkersReader( const LatencyMarkersStorage* storage, uint32_t numEntries )
   : m_storage(storage) {
     m_index = 0;
-    if (m_storage->m_timeline.frameFinished.load() > numEntries + DXGI_MAX_SWAP_CHAIN_BUFFERS + 2)
+    if (m_storage->m_timeline.frameFinished.load() > numEntries + storage->m_firstFrameId + 2)
       m_index = m_storage->m_timeline.frameFinished.load() - numEntries;
   }
 

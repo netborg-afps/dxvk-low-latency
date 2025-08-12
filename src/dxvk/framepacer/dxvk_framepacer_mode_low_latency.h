@@ -44,8 +44,8 @@ namespace dxvk {
     using time_point = high_resolution_clock::time_point;
   public:
 
-    LowLatencyMode(Mode mode, LatencyMarkersStorage* storage, const DxvkOptions& options, int refreshRate = 0)
-    : FramePacerMode(mode, storage),
+    LowLatencyMode(Mode mode, LatencyMarkersStorage* storage, const DxvkOptions& options, uint64_t firstFrameId, int refreshRate = 0)
+    : FramePacerMode(mode, storage, firstFrameId),
       m_lowLatencyOffset(getLowLatencyOffset(options)),
       m_allowCpuFramesOverlap(options.lowLatencyAllowCpuFramesOverlap),
       m_presentationStats(5000),
@@ -88,7 +88,7 @@ namespace dxvk {
         // but it seems to just sleep until t1, regardless of t0, which is exactly what we need.
 
         uint64_t finishedId = m_latencyMarkersStorage->getTimeline()->gpuFinished.load();
-        if (finishedId <= DXGI_MAX_SWAP_CHAIN_BUFFERS+1ull)
+        if (finishedId <= m_firstFrameId+1)
           return;
 
         if (finishedId == frameId-1) {
@@ -208,7 +208,7 @@ namespace dxvk {
 
     void endFrame( uint64_t frameId ) override {
 
-      if (m_mode == LOW_LATENCY_VRR && frameId > 100) {
+      if (m_mode == LOW_LATENCY_VRR && frameId > m_firstFrameId+1) {
         const LatencyMarkers* m1 = m_latencyMarkersStorage->getConstMarkers(frameId-1);
         const LatencyMarkers* m2 = m_latencyMarkersStorage->getConstMarkers(frameId);
 
@@ -249,7 +249,7 @@ namespace dxvk {
       // than outlier removal, which will dampen stuttering effects.
       SyncProps res = {};
       uint64_t id = m_propsFinished;
-      if (id < DXGI_MAX_SWAP_CHAIN_BUFFERS+7)
+      if (id < m_firstFrameId+7)
         return res;
 
       for (size_t i=0; i<7; ++i) {

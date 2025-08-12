@@ -5,7 +5,6 @@
 #include "dxvk_latency_stats.h"
 #include "../dxvk_latency.h"
 #include "../../util/util_time.h"
-#include <dxgi.h>
 
 
 namespace dxvk {

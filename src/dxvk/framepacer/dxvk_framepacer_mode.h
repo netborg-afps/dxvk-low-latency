@@ -4,7 +4,6 @@
 #include "../../util/sync/sync_signal.h"
 #include "../../util/util_env.h"
 #include "../../util/util_time.h"
-#include <dxgi.h>
 
 namespace dxvk {
 
@@ -25,9 +24,10 @@ namespace dxvk {
       MIN_LATENCY
     };
 
-    FramePacerMode( Mode mode, LatencyMarkersStorage* markerStorage, uint32_t maxFrameLatency=1 )
+    FramePacerMode( Mode mode, LatencyMarkersStorage* markerStorage, uint64_t firstFrameId, uint32_t maxFrameLatency=1 )
     : m_mode( mode ),
       m_waitLatency( maxFrameLatency+1 ),
+      m_firstFrameId( firstFrameId ),
       m_latencyMarkersStorage( markerStorage ) {
       setFpsLimitFrametimeFromEnv();
     }
@@ -80,15 +80,16 @@ namespace dxvk {
     void setFpsLimitFrametimeFromEnv();
 
     const uint32_t m_waitLatency;
+    const uint64_t m_firstFrameId;
     LatencyMarkersStorage* m_latencyMarkersStorage;
     std::atomic<uint32_t> m_presentMode;
     std::atomic<int32_t> m_fpsLimitFrametime = { 0 };
     bool m_fpsLimitEnvOverride = { false };
 
-    sync::Fence m_fenceGpuStart      = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
-    sync::Fence m_fenceGpuFinished   = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
-    sync::Fence m_fenceFrameFinished = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
-    sync::Fence m_fenceCsFinished    = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
+    sync::Fence m_fenceGpuStart;
+    sync::Fence m_fenceGpuFinished;
+    sync::Fence m_fenceFrameFinished;
+    sync::Fence m_fenceCsFinished;
 
   };
 

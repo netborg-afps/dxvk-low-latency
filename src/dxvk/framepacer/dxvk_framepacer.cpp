@@ -13,7 +13,8 @@ namespace dxvk {
   }
 
 
-  FramePacer::FramePacer( const DxvkOptions& options, uint64_t firstFrameId ) {
+  FramePacer::FramePacer( const DxvkOptions& options, uint64_t firstFrameId )
+  : m_latencyMarkersStorage(firstFrameId) {
     // We'll default to LOW_LATENCY in the draft-PR for now, for demonstration purposes,
     // highlighting the generally much better input lag and time consistency.
     // MAX_FRAME_LATENCY has advantages in some games that provide inconsistent
@@ -50,28 +51,28 @@ namespace dxvk {
     switch (mode) {
       case FramePacerMode::MAX_FRAME_LATENCY:
         Logger::info( "Frame pace: max-frame-latency" );
-        m_mode = std::make_unique<FramePacerMode>(FramePacerMode::MAX_FRAME_LATENCY, &m_latencyMarkersStorage);
+        m_mode = std::make_unique<FramePacerMode>(FramePacerMode::MAX_FRAME_LATENCY, &m_latencyMarkersStorage, firstFrameId);
         break;
 
       case FramePacerMode::LOW_LATENCY:
         Logger::info( "Frame pace: low-latency" );
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
-        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkersStorage, options);
+        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkersStorage, options, firstFrameId);
         break;
 
       case FramePacerMode::LOW_LATENCY_VRR:
         Logger::info( "Frame pace: low-latency-vrr" );
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
-        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkersStorage, options, refreshRate);
+        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkersStorage, options, firstFrameId, refreshRate);
         break;
 
       case FramePacerMode::MIN_LATENCY:
         Logger::info( "Frame pace: min-latency" );
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
-        m_mode = std::make_unique<MinLatencyMode>(mode, &m_latencyMarkersStorage);
+        m_mode = std::make_unique<MinLatencyMode>(mode, &m_latencyMarkersStorage, firstFrameId);
         break;
     }
 
