@@ -81,7 +81,9 @@ namespace dxvk {
 
     // be consistent that every frame has a gpuReady event from finishing the previous frame
     LatencyMarkers* m = m_latencyMarkersStorage.getMarkers( firstFrameId );
-    m->gpuReady.push_back( high_resolution_clock::now() );
+    auto now = high_resolution_clock::now();
+    m->gpuReady.push_back( now );
+    m_mode->notifyGpuReady( firstFrameId, now );
     m_gpuStarts[ firstFrameId % m_gpuStarts.size() ] = gpuReadyBit;
 
     LatencyMarkersTimeline& timeline = m_latencyMarkersStorage.m_timeline;
@@ -92,6 +94,7 @@ namespace dxvk {
 
     m_mode->signalGpuStart       ( firstFrameId-1 );
     m_mode->signalRenderFinished ( firstFrameId-1 );
+    m_mode->signalFrameFinished  ( firstFrameId-1 );
     m_mode->signalCsFinished     ( firstFrameId );
   }
 

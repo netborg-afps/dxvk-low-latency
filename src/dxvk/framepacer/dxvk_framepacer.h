@@ -41,6 +41,7 @@ namespace dxvk {
       // the frame has been displayed to the screen
       m_latencyMarkersStorage.registerFrameEnd(frameId);
       m_mode->endFrame(frameId);
+      m_mode->signalFrameFinished(frameId);
       m_gpuStarts[ (frameId-1) % m_gpuStarts.size() ].store(0);
       trackStats(frameId);
     }
@@ -82,6 +83,7 @@ namespace dxvk {
       LatencyMarkers* m = m_latencyMarkersStorage.getMarkers(frameId);
       m->gpuQueueSubmit.push_back(now);
       queueSubmitCheckGpuStart(frameId, m, now);
+      m_mode->notifyQueueSubmit(frameId, now);
     }
 
     void notifyQueuePresentBegin( uint64_t frameId ) override {
@@ -90,6 +92,7 @@ namespace dxvk {
         LatencyMarkers* m = m_latencyMarkersStorage.getMarkers(frameId);
         LatencyMarkers* next = m_latencyMarkersStorage.getMarkers(frameId+1);
         m->gpuQueueSubmit.push_back(now);
+        m_mode->notifyQueueSubmit(frameId, now);
         next->gpuQueueSubmit.clear();
         queueSubmitCheckGpuStart(frameId, m, now);
       }
@@ -99,6 +102,7 @@ namespace dxvk {
       auto now = high_resolution_clock::now();
       LatencyMarkers* m = m_latencyMarkersStorage.getMarkers(frameId);
       m->gpuReady.push_back(now);
+      m_mode->notifyGpuReady(frameId, now);
     }
 
     virtual void notifyGpuPresentBegin( uint64_t frameId ) override {
@@ -109,9 +113,11 @@ namespace dxvk {
         LatencyMarkers* m = m_latencyMarkersStorage.getMarkers(frameId);
         LatencyMarkers* next = m_latencyMarkersStorage.getMarkers(frameId+1);
         m->gpuReady.push_back(now);
+        m_mode->notifyGpuReady(frameId, now);
         m->gpuFinished = std::chrono::duration_cast<microseconds>(now - m->start).count();
         next->gpuReady.clear();
         next->gpuReady.push_back(now);
+        m_mode->notifyGpuReady(frameId+1, now);
 
         gpuExecutionCheckGpuStart(frameId+1, next, now);
 

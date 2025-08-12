@@ -3,6 +3,7 @@
 #include "dxvk_latency_markers.h"
 #include "../../util/sync/sync_signal.h"
 #include "../../util/util_env.h"
+#include "../../util/util_time.h"
 #include <dxgi.h>
 
 namespace dxvk {
@@ -12,6 +13,8 @@ namespace dxvk {
    */
 
   class FramePacerMode {
+
+    using time_point = high_resolution_clock::time_point;
 
   public:
 
@@ -36,6 +39,9 @@ namespace dxvk {
 
     virtual void finishRender( uint64_t frameId ) { }
 
+    virtual void notifyQueueSubmit( uint64_t frameId, time_point t ) { }
+    virtual void notifyGpuReady( uint64_t frameId, time_point t ) { }
+
     virtual bool getDesiredPresentMode( uint32_t& presentMode ) const {
       return false; }
 
@@ -49,6 +55,9 @@ namespace dxvk {
 
     void signalRenderFinished( uint64_t frameId ) {
       if (m_mode) m_fenceGpuFinished.signal(frameId); }
+
+    void signalFrameFinished( uint64_t frameId ) {
+      if (m_mode) m_fenceFrameFinished.signal(frameId); }
 
     void signalGpuStart( uint64_t frameId ) {
       if (m_mode) m_fenceGpuStart.signal(frameId); }
@@ -76,9 +85,10 @@ namespace dxvk {
     std::atomic<int32_t> m_fpsLimitFrametime = { 0 };
     bool m_fpsLimitEnvOverride = { false };
 
-    sync::Fence m_fenceGpuStart    = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
-    sync::Fence m_fenceGpuFinished = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
-    sync::Fence m_fenceCsFinished  = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
+    sync::Fence m_fenceGpuStart      = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
+    sync::Fence m_fenceGpuFinished   = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
+    sync::Fence m_fenceFrameFinished = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
+    sync::Fence m_fenceCsFinished    = { sync::Fence(DXGI_MAX_SWAP_CHAIN_BUFFERS) };
 
   };
 

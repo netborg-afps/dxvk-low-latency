@@ -48,13 +48,14 @@ namespace dxvk {
     : FramePacerMode(mode, storage),
       m_lowLatencyOffset(getLowLatencyOffset(options)),
       m_allowCpuFramesOverlap(options.lowLatencyAllowCpuFramesOverlap),
-      m_presentationStats(5000) {
-      Logger::info( str::format("Using lowLatencyOffset: ", m_lowLatencyOffset) );
-      Logger::info( str::format("Using lowLatencyAllowCpuFramesOverlap: ", m_allowCpuFramesOverlap) );
+      m_presentationStats(5000),
+      m_gpuProgress(storage) {
+      Logger::info( str::format("  lowLatencyOffset: ", m_lowLatencyOffset) );
+      Logger::info( str::format("  lowLatencyAllowCpuFramesOverlap: ", m_allowCpuFramesOverlap) );
 
       if (refreshRate > 0) {
         m_vrrRefreshInterval = 1'000'000 / refreshRate;
-        Logger::info( str::format("Using vrr refresh rate: ", refreshRate) );
+        Logger::info( str::format("  vrr refresh rate: ", refreshRate) );
       }
 
     }
@@ -140,6 +141,13 @@ namespace dxvk {
       m_lastStart = nextStart;
 
     }
+
+
+    void notifyGpuReady( uint64_t frameId, time_point t ) override
+      { m_gpuProgress.notifyGpuReady( frameId, t ); }
+
+    void notifyQueueSubmit( uint64_t frameId, time_point t ) override
+      { m_gpuProgress.notifyQueueSubmit( frameId, t ); }
 
 
     void finishRender( uint64_t frameId ) override {
@@ -352,10 +360,12 @@ namespace dxvk {
     int32_t m_vrrRefreshInterval = { 0 };
     LatencyStats m_presentationStats;
 
-    std::array<SyncProps, 16> m_props;
+    std::array<SyncProps, 16> m_props = { };
     std::atomic<uint64_t> m_propsFinished = { 0 };
 
     std::vector<int32_t>  m_tempGpuRun;
+
+    GpuProgress m_gpuProgress;
 
   };
 

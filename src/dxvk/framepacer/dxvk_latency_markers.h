@@ -78,7 +78,7 @@ namespace dxvk {
     }
 
     void registerFrameStart( uint64_t frameId ) {
-      if (frameId <= m_timeline.frameFinished.load()) {
+      if (unlikely(frameId <= m_timeline.frameFinished.load())) {
         Logger::warn( str::format("internal error during registerFrameStart: expected frameId=",
           m_timeline.frameFinished.load()+1, ", got: ", frameId) );
       }
@@ -89,7 +89,7 @@ namespace dxvk {
     }
 
     void registerFrameEnd( uint64_t frameId ) {
-      if (frameId <= m_timeline.frameFinished.load()) {
+      if (unlikely(frameId <= m_timeline.frameFinished.load())) {
         Logger::warn( str::format("internal error during registerFrameEnd: expected frameId=",
           m_timeline.frameFinished.load()+1, ", got: ", frameId) );
       }
