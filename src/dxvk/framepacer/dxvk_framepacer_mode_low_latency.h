@@ -271,16 +271,16 @@ namespace dxvk {
 
     bool isOutlier( uint64_t frameId ) const {
 
-      constexpr size_t numLoop = 7;
+      constexpr int32_t numLoop = 7;
       int32_t totalCpuTime = 0;
-      for (size_t i=1; i<numLoop; ++i) {
-        const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(frameId-i);
-        totalCpuTime += m->cpuFinished;
+      for (int32_t i=1; i<numLoop; ++i) {
+        const SyncProps& props = m_props[ (frameId-i) % m_props.size() ];
+        totalCpuTime += props.cpuUntilGpuStart;
       }
 
       int32_t avgCpuTime = totalCpuTime / (numLoop-1);
-      const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(frameId);
-      if (m->cpuFinished > 1.3*avgCpuTime || m->gpuSubmit.empty() || m->gpuReady.size() != (m->gpuSubmit.size()+1) )
+      const SyncProps& props = m_props[ frameId % m_props.size() ];
+      if (props.cpuUntilGpuStart > 1.3*avgCpuTime)
         return true;
 
       return false;
