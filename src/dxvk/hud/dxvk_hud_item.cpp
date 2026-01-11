@@ -60,6 +60,9 @@ namespace dxvk::hud {
       m_enabled.insert("devinfo");
       m_enabled.insert("fps");
     }
+
+    if (m_enabled.find("ab-switch") == m_enabled.end())
+      m_enabled.insert("ab-switch");
   }
 
 

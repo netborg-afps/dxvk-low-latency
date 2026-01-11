@@ -6,6 +6,7 @@
 #include "util_sleep.h"
 #include "util_string.h"
 #include "../dxvk/framepacer/dxvk_framepacer.h"
+#include "../dxvk/framepacer/dxvk_framepacer_mode_ab_switch.h"
 
 #include "./log/log.h"
 
@@ -51,8 +52,13 @@ namespace dxvk {
 
   void FpsLimiter::delay(const Rc<DxvkLatencyTracker>& tracker) {
     FramePacer* framePacer = dynamic_cast<FramePacer*>(tracker.ptr());
-    if (framePacer && framePacer->getMode()) {
-      return;
+    if (framePacer) {
+      ABSwitchMode* abSwitchMode = dynamic_cast<ABSwitchMode*>( framePacer->getFramePacerMode() );
+      if (!abSwitchMode && framePacer->getMode())
+        return;
+
+      if (abSwitchMode && abSwitchMode->getCurMode())
+        return;
     }
 
     m_isActive.store(false);

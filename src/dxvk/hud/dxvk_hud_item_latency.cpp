@@ -1,5 +1,6 @@
 #include "dxvk_hud_item.h"
 #include "../framepacer/dxvk_framepacer.h"
+#include "../framepacer/dxvk_framepacer_mode_ab_switch.h"
 
 namespace dxvk::hud {
 
@@ -147,6 +148,59 @@ namespace dxvk::hud {
 
     position.y += 8;
     return position;
+  }
+
+
+  HudABPacerSwitchItem::HudABPacerSwitchItem() { }
+  HudABPacerSwitchItem::~HudABPacerSwitchItem() { }
+
+  void HudABPacerSwitchItem::update(dxvk::high_resolution_clock::time_point time) {
+
+    const Rc<DxvkLatencyTracker> tracker = m_tracker;
+    FramePacer* framePacer = dynamic_cast<FramePacer*>( tracker.ptr() );
+    if (!framePacer)
+      return;
+
+    FramePacerMode* mode = framePacer->getFramePacerMode();
+    ABSwitchMode* abSwitchMode = dynamic_cast<ABSwitchMode*>( mode );
+    if (!abSwitchMode)
+      return;
+
+    auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(time - m_lastUpdate);
+
+    if (elapsed.count() >= UpdateInterval) {
+      m_lastUpdate = time;
+
+      const ABSwitchMode::AB& info = abSwitchMode->getABInfo();
+      const FramePacerMode* A = info.A.load();
+      const FramePacerMode* B = info.B.load();
+      m_A = std::string("A: ") + std::string(A ? A->getName() : "");
+      m_B = std::string("B: ") + std::string(B ? B->getName() : "");
+
+      m_activeMode = info.getModeString( info.m_activeMode );
+    }
+
+  }
+
+
+  HudPos HudABPacerSwitchItem::render(
+    const Rc<DxvkCommandList>&ctx,
+    const HudPipelineKey&     key,
+    const HudOptions&         options,
+          HudRenderer&        renderer,
+          HudPos              position) {
+
+    position.y += 12;
+
+    renderer.drawText(16, position, 0xff0000ffu, m_A);
+    position.y += 16;
+    renderer.drawText(16, position, 0xff0000ffu, m_B);
+
+    renderer.drawText(32, {-64, 64}, 0xff0000ffu, m_activeMode);
+
+    position.y += 8;
+    return position;
+
   }
 
 

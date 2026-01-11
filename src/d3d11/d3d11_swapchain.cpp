@@ -301,6 +301,9 @@ namespace dxvk {
     if (m_latencyDetailsHud)
       m_latencyDetailsHud->updateLatencyTracker(m_latency);
 
+    if (m_ABSwitchHud)
+      m_ABSwitchHud->updateLatencyTracker(m_latency);
+
     return hr;
   }
 
@@ -612,6 +615,7 @@ namespace dxvk {
         m_latencyHud = hud->addItem<hud::HudLatencyItem>("latency", 4);
         FramePacer* framePacer = dynamic_cast<FramePacer*>(m_latency.ptr());
         if (framePacer) {
+          m_ABSwitchHud = hud->addItem<hud::HudABPacerSwitchItem>("ab-switch", 0);
           int32_t fpsItemPos = hud->getItemPos<hud::HudFpsItem>();
           m_renderLatencyHud = hud->addItem<hud::HudRenderLatencyItem>("renderlatency", fpsItemPos+1);
           m_latencyDetailsHud = hud->addItem<hud::HudLatencyDetailsItem>("latencydetails", fpsItemPos+2);

@@ -22,7 +22,8 @@ namespace dxvk {
       MAX_FRAME_LATENCY = 0,
       LOW_LATENCY,
       LOW_LATENCY_VRR,
-      MIN_LATENCY
+      MIN_LATENCY,
+      AB_SWITCH
     };
 
     FramePacerMode( Mode mode, const char* name, LatencyMarkersStorage* markerStorage, FrameSync* frameSync, uint64_t firstFrameId )

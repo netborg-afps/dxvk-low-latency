@@ -1,6 +1,7 @@
 #include "dxvk_framepacer.h"
 #include "dxvk_framepacer_mode_low_latency.h"
 #include "dxvk_framepacer_mode_min_latency.h"
+#include "dxvk_framepacer_mode_ab_switch.h"
 #include "dxvk_options.h"
 #include "../dxvk_device.h"
 #include "../../util/util_flush.h"
@@ -49,6 +50,8 @@ namespace dxvk {
       Logger::warn( str::format( "dxvk.framePace = ", options.framePace, " unknown" ));
     }
 
+    mode = FramePacerMode::AB_SWITCH;
+
     switch (mode) {
       case FramePacerMode::MAX_FRAME_LATENCY:
         Logger::info( "Frame pace: max-frame-latency" );
@@ -77,6 +80,11 @@ namespace dxvk {
         GpuFlushTracker::m_minChunkCount = 1;
         m_frameSync.m_waitLatency = 1;
         m_mode = std::make_unique<MinLatencyMode>(mode, &m_latencyMarkersStorage, &m_frameSync, firstFrameId);
+        break;
+
+      case FramePacerMode::AB_SWITCH:
+        Logger::info( "Frame pace: ab-switch" );
+        m_mode = std::make_unique<ABSwitchMode>(&m_latencyMarkersStorage, &m_frameSync, options, firstFrameId);
         break;
     }
 

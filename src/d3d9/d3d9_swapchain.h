@@ -187,6 +187,7 @@ namespace dxvk {
     Rc<hud::HudLatencyItem>         m_latencyHud;
     Rc<hud::HudRenderLatencyItem>   m_renderLatencyHud;
     Rc<hud::HudLatencyDetailsItem>  m_latencyDetailsHud;
+    Rc<hud::HudABPacerSwitchItem>   m_ABSwitchHud;
 
     std::optional<VkHdrMetadataEXT> m_hdrMetadata;
     bool m_unlockAdditionalFormats = false;

@@ -334,6 +334,44 @@ namespace dxvk::hud {
 
 
   /**
+   * \brief HUD item to display (random) AB frame pacing mode
+   */
+  class HudABPacerSwitchItem : public HudItem {
+    constexpr static int64_t UpdateInterval = 500'000;
+  public:
+
+    HudABPacerSwitchItem();
+
+    ~HudABPacerSwitchItem();
+
+    void updateLatencyTracker( const Rc<DxvkLatencyTracker>& tracker ) {
+      m_tracker = tracker;
+    }
+
+    void update(dxvk::high_resolution_clock::time_point time);
+
+    HudPos render(
+      const Rc<DxvkCommandList>&ctx,
+      const HudPipelineKey&     key,
+      const HudOptions&         options,
+            HudRenderer&        renderer,
+            HudPos              position);
+
+  private:
+
+    Rc<DxvkLatencyTracker> m_tracker;
+
+    dxvk::high_resolution_clock::time_point m_lastUpdate
+      = dxvk::high_resolution_clock::now();
+
+    std::string m_A;
+    std::string m_B;
+    std::string m_activeMode;
+
+  };
+
+
+  /**
    * \brief HUD item to display the frame rate
    */
   class HudFrameTimeItem : public HudItem {
