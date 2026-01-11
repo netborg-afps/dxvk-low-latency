@@ -17,6 +17,7 @@ namespace dxvk {
 
   #define EXTENSIONS_WITH_FEATURES                 \
     HANDLE_EXT(extAttachmentFeedbackLoopLayout);   \
+    HANDLE_EXT(extCalibratedTimestamps);           \
     HANDLE_EXT(extConservativeRasterization);      \
     HANDLE_EXT(extCustomBorderColor);              \
     HANDLE_EXT(extDepthClipEnable);                \
@@ -40,7 +41,6 @@ namespace dxvk {
     HANDLE_EXT(extSwapchainMaintenance1);          \
     HANDLE_EXT(extTransformFeedback);              \
     HANDLE_EXT(extVertexAttributeDivisor);         \
-    HANDLE_EXT(khrCalibratedTimestamps);           \
     HANDLE_EXT(khrExternalMemoryWin32);            \
     HANDLE_EXT(khrExternalSemaphoreWin32);         \
     HANDLE_EXT(khrLoadStoreOpNone);                \
@@ -786,6 +786,9 @@ namespace dxvk {
       /* Allows sampling currently bound render targets for client APIs */
       ENABLE_EXT_FEATURE(extAttachmentFeedbackLoopLayout, attachmentFeedbackLoopLayout, false),
 
+      /* Calibrated timestamps for frame pacing and present_timing */
+      ENABLE_EXT(extCalibratedTimestamps, false),
+
       /* Enables client API features */
       ENABLE_EXT(extConservativeRasterization, false),
 
@@ -892,9 +895,6 @@ namespace dxvk {
 
       /* Mutable format used to change srgb-ness of swapchain views */
       ENABLE_EXT(khrSwapchainMutableFormat, false),
-
-      /* Calibrated timestamps for frame pacing and present_timing */
-      ENABLE_EXT(khrCalibratedTimestamps, false),
 
       /* Keyed mutex support in wine */
       ENABLE_EXT(khrWin32KeyedMutex, false),

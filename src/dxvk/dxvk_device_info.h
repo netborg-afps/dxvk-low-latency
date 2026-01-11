@@ -55,6 +55,7 @@ namespace dxvk {
     VkPhysicalDeviceVulkan12Features                          vk12                            = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };;
     VkPhysicalDeviceVulkan13Features                          vk13                            = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };;
     VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT   extAttachmentFeedbackLoopLayout = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT };
+    VkBool32                                                  extCalibratedTimestamps         = VK_FALSE;
     VkBool32                                                  extConservativeRasterization    = VK_FALSE;
     VkPhysicalDeviceCustomBorderColorFeaturesEXT              extCustomBorderColor            = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT };
     VkPhysicalDeviceDepthClipEnableFeaturesEXT                extDepthClipEnable              = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT };
@@ -78,7 +79,6 @@ namespace dxvk {
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT          extSwapchainMaintenance1        = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT };
     VkPhysicalDeviceTransformFeedbackFeaturesEXT              extTransformFeedback            = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT };
     VkPhysicalDeviceVertexAttributeDivisorFeaturesEXT         extVertexAttributeDivisor       = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES };
-    VkBool32                                                  khrCalibratedTimestamps         = VK_FALSE;
     VkBool32                                                  khrExternalMemoryWin32          = VK_FALSE;
     VkBool32                                                  khrExternalSemaphoreWin32       = VK_FALSE;
     VkBool32                                                  khrLoadStoreOpNone              = VK_FALSE;
@@ -113,6 +113,7 @@ namespace dxvk {
    */
   struct DxvkDeviceExtensionInfo {
     VkExtensionProperties extAttachmentFeedbackLoopLayout   = vk::makeExtension(VK_EXT_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_EXTENSION_NAME);
+    VkExtensionProperties extCalibratedTimestamps           = vk::makeExtension(VK_EXT_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
     VkExtensionProperties extConservativeRasterization      = vk::makeExtension(VK_EXT_CONSERVATIVE_RASTERIZATION_EXTENSION_NAME);
     VkExtensionProperties extCustomBorderColor              = vk::makeExtension(VK_EXT_CUSTOM_BORDER_COLOR_EXTENSION_NAME);
     VkExtensionProperties extDepthClipEnable                = vk::makeExtension(VK_EXT_DEPTH_CLIP_ENABLE_EXTENSION_NAME);
@@ -136,7 +137,6 @@ namespace dxvk {
     VkExtensionProperties extSwapchainMaintenance1          = vk::makeExtension(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME);
     VkExtensionProperties extTransformFeedback              = vk::makeExtension(VK_EXT_TRANSFORM_FEEDBACK_EXTENSION_NAME);
     VkExtensionProperties extVertexAttributeDivisor         = vk::makeExtension(VK_EXT_VERTEX_ATTRIBUTE_DIVISOR_EXTENSION_NAME);
-    VkExtensionProperties khrCalibratedTimestamps           = vk::makeExtension(VK_KHR_CALIBRATED_TIMESTAMPS_EXTENSION_NAME);
     VkExtensionProperties khrExternalMemoryWin32            = vk::makeExtension(VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
     VkExtensionProperties khrExternalSemaphoreWin32         = vk::makeExtension(VK_KHR_EXTERNAL_SEMAPHORE_WIN32_EXTENSION_NAME);
     VkExtensionProperties khrLoadStoreOpNone                = vk::makeExtension(VK_KHR_LOAD_STORE_OP_NONE_EXTENSION_NAME);

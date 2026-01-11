@@ -7,7 +7,7 @@ namespace dxvk {
   class DxvkDevice;
 
   /*
-   * Clock synchronization for GPU/CPU via the VK_KHR_calibrated_timestamps
+   * Clock synchronization for GPU/CPU via the VK_EXT_calibrated_timestamps
    * device extension. The clocks need to get calibrated regularly, for example
    * once every frame, to account for clock drift.
    *
