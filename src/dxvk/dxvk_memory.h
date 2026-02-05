@@ -506,6 +506,7 @@ namespace dxvk {
   class alignas(CACHE_LINE_SIZE) DxvkResourceAllocation {
     friend DxvkMemoryAllocator;
 
+    friend class FreeList;
     friend struct DxvkMemoryChunk;
     friend class DxvkLocalAllocationCache;
     friend class DxvkSharedAllocationCache;
@@ -927,11 +928,36 @@ namespace dxvk {
 
   private:
 
-    struct FreeList {
-      uint16_t size = 0u;
-      uint16_t capacity = 0u;
+    /*
+     * size has to be a power of 2, and at least 2
+     */
+    class FreeList {
+    public:
 
-      DxvkResourceAllocation* head = nullptr;
+      FreeList () {}
+      void setCapacity( uint16_t capacity ) {
+        m_size = capacity;
+        m_size_minus_one = capacity-1;
+        m_data.resize( capacity );
+      }
+
+      DxvkResourceAllocation* push( DxvkResourceAllocation* allocation );
+      DxvkResourceAllocation* shutdown();
+
+    private:
+
+      DxvkResourceAllocation* createList();
+
+      alignas(64) std::atomic<uint64_t> m_producerId  = { 0 };
+      alignas(64) std::atomic<uint64_t> m_consumerId  = { 0 };
+      alignas(64) std::atomic<size_t> m_dataWritten   = { 0 };
+
+      std::vector< DxvkResourceAllocation* > m_data;
+
+      uint16_t m_size = 0u;
+      uint16_t m_size_minus_one = 0u;
+
+      static_assert( std::atomic<uint64_t>::is_always_lock_free );
     };
 
     struct List {
@@ -948,7 +974,6 @@ namespace dxvk {
     alignas(CACHE_LINE_SIZE)
     DxvkMemoryAllocator*        m_allocator = nullptr;
 
-    dxvk::mutex                 m_freeMutex;
     std::array<FreeList, PoolCount> m_freeLists = { };
 
     alignas(CACHE_LINE_SIZE)

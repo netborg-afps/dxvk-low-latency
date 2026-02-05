@@ -431,7 +431,7 @@ namespace dxvk {
   : m_allocator(allocator) {
     for (uint32_t i = 0; i < m_pools.size(); i++) {
       VkDeviceSize size = DxvkLocalAllocationCache::computeAllocationSize(i);
-      m_freeLists[i].capacity = DxvkLocalAllocationCache::computePreferredAllocationCount(size);
+      m_freeLists[i].setCapacity( DxvkLocalAllocationCache::computePreferredAllocationCount(size) );
     }
 
     // Initialize unallocated list of lists
@@ -443,8 +443,8 @@ namespace dxvk {
 
 
   DxvkSharedAllocationCache::~DxvkSharedAllocationCache() {
-    for (const auto& freeList : m_freeLists)
-      m_allocator->freeCachedAllocations(freeList.head);
+    for (auto& freeList : m_freeLists)
+      m_allocator->freeCachedAllocations(freeList.shutdown());
 
     for (const auto& list : m_lists)
       m_allocator->freeCachedAllocations(list.head);
@@ -484,26 +484,84 @@ namespace dxvk {
   }
 
 
+  DxvkResourceAllocation* DxvkSharedAllocationCache::FreeList::push( DxvkResourceAllocation* allocation ) {
+    uint64_t consumerId = m_consumerId.load( std::memory_order_relaxed );
+    uint64_t producerId = m_producerId.fetch_add(1, std::memory_order_acq_rel );
+
+    // blocking here for simplicity, wait until all data is written
+    // spinning should basically only take ~1 us
+
+    while (unlikely(producerId > consumerId + m_size_minus_one)) {
+//      sync::pause();
+      consumerId = m_consumerId.load( std::memory_order_acquire );
+    }
+
+    m_data[producerId & m_size_minus_one] = allocation;
+    uint16_t dataWrittenMinusOne = m_dataWritten.fetch_add( 1, std::memory_order_acq_rel );
+
+    if (likely(dataWrittenMinusOne != m_size_minus_one))
+      return nullptr;
+
+    // we know that all data[size] has been written to
+    // and we are the last and only thread arriving here.
+
+    DxvkResourceAllocation* listHead = createList();
+
+    m_dataWritten.store( 0, std::memory_order_release );
+    m_consumerId.fetch_add( m_size, std::memory_order_acq_rel );
+
+    return listHead;
+  }
+
+
+  DxvkResourceAllocation* DxvkSharedAllocationCache::FreeList::createList() {
+    DxvkResourceAllocation** next  = &m_data[m_size_minus_one];
+    DxvkResourceAllocation** cur   = &m_data[m_size_minus_one-1];
+    DxvkResourceAllocation** first = &m_data[0];
+
+    (*next)->m_nextCached = nullptr;
+    while (cur >= first) {
+      (*cur)->m_nextCached = *next;
+      --cur;
+      --next;
+    }
+
+    return *first;
+  }
+
+
+  DxvkResourceAllocation* DxvkSharedAllocationCache::FreeList::shutdown() {
+  // todo: verify this is correct
+  // at this point we don't need to "lock"
+
+    uint64_t producerId = m_producerId.load();
+    int id = producerId & m_size_minus_one;
+
+    if (id == 0)
+      return nullptr;
+
+    m_data[id-1]->m_nextCached = nullptr;
+    for (int i = id-2; i >= 0; --i ) {
+      DxvkResourceAllocation* entry = m_data[i];
+      entry->m_nextCached = m_data[i+1];
+    }
+
+    return m_data[0];
+  }
+
+
   DxvkResourceAllocation* DxvkSharedAllocationCache::freeAllocation(
           DxvkResourceAllocation*     allocation) {
     uint32_t poolIndex = DxvkLocalAllocationCache::computePoolIndex(allocation->m_size);
 
-    { std::unique_lock freeLock(m_freeMutex);
-      auto& list = m_freeLists[poolIndex];
+    auto& list = m_freeLists[poolIndex];
+    allocation = list.push(allocation);
 
-      allocation->m_nextCached = list.head;
-      list.head = allocation;
+    if (likely(!allocation))
+      return nullptr;
 
-      if (++list.size < list.capacity)
-        return nullptr;
-
-      // Free list is full, try to add it to the list array
-      // so that subsequent allocations can use it.
-      list.head = nullptr;
-      list.size = 0u;
-    }
-
-    // Add free list to the pool if possible.
+    // Free list is full, add it to the pool if possible, so that
+    // subsequent allocations can use it.
     { std::unique_lock poolLock(m_poolMutex);
       auto& pool = m_pools[poolIndex];
 
