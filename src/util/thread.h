@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "util_error.h"
+#include "util_time.h"
 
 #include "./com/com_include.h"
 
@@ -144,14 +145,12 @@ namespace dxvk {
 
     using native_handle_type = PSRWLOCK;
 
-    mutex() { }
+    mutex( const char* name = "" ) : m_name(name) { }
 
     mutex(const mutex&) = delete;
     mutex& operator = (const mutex&) = delete;
 
-    void lock() {
-      AcquireSRWLockExclusive(&m_lock);
-    }
+    void lock();
 
     void unlock() {
       ReleaseSRWLockExclusive(&m_lock);
@@ -168,6 +167,7 @@ namespace dxvk {
   private:
 
     SRWLOCK m_lock = SRWLOCK_INIT;
+    const char* m_name;
 
   };
 
@@ -184,7 +184,7 @@ namespace dxvk {
 
     using native_handle_type = PCRITICAL_SECTION;
 
-    recursive_mutex() {
+    recursive_mutex(const char* name = "" ) : m_name(name) {
       InitializeCriticalSection(&m_lock);
     }
 
@@ -195,9 +195,7 @@ namespace dxvk {
     recursive_mutex(const recursive_mutex&) = delete;
     recursive_mutex& operator = (const recursive_mutex&) = delete;
 
-    void lock() {
-      EnterCriticalSection(&m_lock);
-    }
+    void lock();
 
     void unlock() {
       LeaveCriticalSection(&m_lock);
@@ -214,6 +212,7 @@ namespace dxvk {
   private:
 
     CRITICAL_SECTION m_lock;
+    const char* m_name;
 
   };
 
@@ -326,9 +325,9 @@ namespace dxvk {
     }
   };
 
-  using mutex              = std::mutex;
-  using recursive_mutex    = std::recursive_mutex;
-  using condition_variable = std::condition_variable;
+//  using mutex              = std::mutex;
+//  using recursive_mutex    = std::recursive_mutex;
+//  using condition_variable = std::condition_variable;
 
   namespace this_thread {
     inline void yield() {
@@ -341,6 +340,78 @@ namespace dxvk {
       return false;
     }
   }
+
+
+  class mutex : public std::mutex {
+  public:
+
+    mutex( const char* name = "" ) : std::mutex() {}
+    virtual ~mutex() {}
+
+  };
+
+
+  class recursive_mutex : public std::recursive_mutex {
+  public:
+
+    recursive_mutex(const char* name = "" ) : std::recursive_mutex() {}
+    virtual ~recursive_mutex() {}
+
+  };
+
+
+  class condition_variable {
+
+  public:
+
+    condition_variable() {}
+
+    condition_variable(condition_variable&) = delete;
+
+    condition_variable& operator = (condition_variable&) = delete;
+
+    void notify_one() {
+      m_cond.notify_one();
+    }
+
+    void notify_all() {
+      m_cond.notify_all();
+    }
+
+    void wait(std::unique_lock<dxvk::mutex>& lock) {
+      m_cond.wait((std::unique_lock<std::mutex>&) lock);
+    }
+
+    template<typename Predicate>
+    void wait(std::unique_lock<dxvk::mutex>& lock, Predicate pred) {
+      m_cond.wait((std::unique_lock<std::mutex>&) lock, pred);
+    }
+
+    template<typename Clock, typename Duration>
+    std::cv_status wait_until(std::unique_lock<dxvk::mutex>& lock, const std::chrono::time_point<Clock, Duration>& time) {
+      return m_cond.wait_until((std::unique_lock<std::mutex>&) lock, time);
+    }
+
+    template<typename Clock, typename Duration, typename Predicate>
+    bool wait_until(std::unique_lock<dxvk::mutex>& lock, const std::chrono::time_point<Clock, Duration>& time, Predicate pred) {
+      return m_cond.wait_until((std::unique_lock<std::mutex>&) lock, time, pred);
+    }
+
+    template<typename Rep, typename Period>
+    std::cv_status wait_for(std::unique_lock<dxvk::mutex>& lock, const std::chrono::duration<Rep, Period>& timeout) {
+      return m_cond.wait_for((std::unique_lock<std::mutex>&) lock, timeout);
+    }
+
+    template<typename Rep, typename Period, typename Predicate>
+    bool wait_for(std::unique_lock<dxvk::mutex>& lock, const std::chrono::duration<Rep, Period>& timeout, Predicate pred) {
+      return m_cond.wait_for((std::unique_lock<std::mutex>&) lock, timeout, pred);
+    }
+
+  private:
+    std::condition_variable m_cond;
+
+  };
+
 #endif
 
 }
