@@ -117,7 +117,7 @@ namespace dxvk {
 
     DXGI_ADAPTER_DESC3 m_desc = { };
 
-    dxvk::mutex                       m_mutex;
+    dxvk::mutex                       m_mutex = { "DxgiAdapter" };
     dxvk::condition_variable          m_cond;
 
     DWORD                             m_eventCookie = 0;

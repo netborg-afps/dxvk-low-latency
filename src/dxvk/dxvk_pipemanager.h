@@ -135,7 +135,7 @@ namespace dxvk {
     std::atomic<uint64_t>             m_tasksTotal     = { 0ull };
     std::atomic<uint64_t>             m_tasksCompleted = { 0ull };
 
-    dxvk::mutex                       m_lock;
+    dxvk::mutex                       m_lock = { "DxvkPipelineWorkers" };
     std::array<PipelineBucket, 3>     m_buckets;
 
     bool                              m_workersRunning = false;
@@ -287,7 +287,7 @@ namespace dxvk {
     DxvkPipelineWorkers       m_workers;
     DxvkPipelineStats         m_stats;
     
-    dxvk::mutex m_mutex;
+    dxvk::mutex m_mutex = { "DxvkPipelineManager" };
     
     std::unordered_map<
       DxvkDescriptorSetLayoutKey,

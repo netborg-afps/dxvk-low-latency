@@ -103,7 +103,7 @@ namespace dxvk {
 
     DxvkDevice* m_device = nullptr;
 
-    dxvk::mutex m_mutex;
+    dxvk::mutex m_mutex = { "DxvkMetaResolvePipeline" };
 
     std::unordered_map<
       DxvkMetaResolvePipelineKey,

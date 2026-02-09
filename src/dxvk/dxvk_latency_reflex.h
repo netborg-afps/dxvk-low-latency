@@ -149,7 +149,7 @@ namespace dxvk {
 
     Rc<Presenter>             m_presenter;
 
-    dxvk::mutex               m_mutex;
+    dxvk::mutex               m_mutex = { "latency reflex" };
     dxvk::condition_variable  m_cond;
 
     uint64_t                  m_lastBeginAppFrameId = 0u;

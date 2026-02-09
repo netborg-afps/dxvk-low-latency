@@ -122,7 +122,7 @@ namespace dxvk {
 
     double                    m_targetFrameRate = 0.0;
 
-    dxvk::mutex               m_frameStatisticsLock;
+    dxvk::mutex               m_frameStatisticsLock = { "D3D11SwapChain::FrameStatistics" };
     DXGI_VK_FRAME_STATISTICS  m_frameStatistics = { };
 
     Rc<hud::HudLatencyItem>         m_latencyHud;

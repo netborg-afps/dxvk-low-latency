@@ -83,7 +83,7 @@ namespace dxvk {
 
     Rc<Presenter>             m_presenter;
 
-    dxvk::mutex               m_mutex;
+    dxvk::mutex               m_mutex = { "LatencyBuiltin" };
     dxvk::condition_variable  m_cond;
 
     duration                  m_tolerance;

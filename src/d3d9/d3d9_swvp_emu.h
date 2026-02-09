@@ -50,7 +50,7 @@ namespace dxvk {
 
   private:
 
-    dxvk::mutex                               m_mutex;
+    dxvk::mutex                               m_mutex = { "D3D9SWVPEmulator" };
 
     std::unordered_map<
       D3D9CompactVertexElements, Rc<DxvkShader>,

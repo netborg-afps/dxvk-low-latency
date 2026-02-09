@@ -138,7 +138,7 @@ namespace dxvk {
     std::string                 m_debugName;
 
     alignas(CACHE_LINE_SIZE)
-    dxvk::mutex                             m_mutex;
+    dxvk::mutex                             m_mutex = { "DxvkComputePipeline" };
     sync::List<DxvkComputePipelineInstance> m_pipelines;
     
     DxvkComputePipelineInstance* createInstance(

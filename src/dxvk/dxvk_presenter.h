@@ -273,7 +273,7 @@ namespace dxvk {
 
     PresenterSurfaceProc        m_surfaceProc;
 
-    dxvk::mutex                 m_surfaceMutex;
+    dxvk::mutex                 m_surfaceMutex = { "Presenter::m_surfaceMutex" };
     dxvk::condition_variable    m_surfaceCond;
 
     VkSurfaceKHR                m_surface     = VK_NULL_HANDLE;
@@ -312,7 +312,7 @@ namespace dxvk {
     bool                        m_latencySleepSupported = false;
 
     alignas(CACHE_LINE_SIZE)
-    dxvk::mutex                 m_frameMutex;
+    dxvk::mutex                 m_frameMutex = { "Presenter::m_frameMutex" };
     dxvk::condition_variable    m_frameCond;
     dxvk::condition_variable    m_frameDrain;
     dxvk::thread                m_frameThread;

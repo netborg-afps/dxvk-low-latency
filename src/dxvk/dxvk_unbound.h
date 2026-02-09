@@ -50,7 +50,7 @@ namespace dxvk {
     std::atomic<bool>       m_bufferCreated = { false };
     std::atomic<bool>       m_samplerCreated = { false };
 
-    dxvk::mutex             m_mutex;
+    dxvk::mutex             m_mutex = { "DxvkUnboundResources" };
     Rc<DxvkSampler>         m_sampler;
     Rc<DxvkBuffer>          m_buffer;
     

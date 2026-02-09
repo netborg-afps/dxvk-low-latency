@@ -66,7 +66,7 @@ namespace dxvk {
 
   private:
 
-    dxvk::mutex       m_mutex;
+    dxvk::mutex       m_mutex = { "D3D11Initializer" };
 
     D3D11Device*      m_parent;
     Rc<DxvkDevice>    m_device;
@@ -76,7 +76,7 @@ namespace dxvk {
 
     size_t            m_transferCommands  = 0;
 
-    dxvk::mutex       m_csMutex;
+    dxvk::mutex       m_csMutex = { "D3D11Initializer::csMutex" };
     DxvkCsChunkRef    m_csChunk;
 
     void InitDeviceLocalBuffer(

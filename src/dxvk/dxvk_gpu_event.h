@@ -120,7 +120,7 @@ namespace dxvk {
 
     std::atomic<uint32_t> m_refCount = { 0u };
 
-    sync::Spinlock    m_mutex;
+    sync::Spinlock    m_mutex = { "Spinlock DxvkEvent" };
     VkResult          m_status = VK_NOT_READY;
 
     Rc<DxvkDevice>    m_device;
@@ -166,7 +166,7 @@ namespace dxvk {
 
     Rc<vk::DeviceFn>            m_vkd;
 
-    dxvk::mutex                 m_mutex;
+    dxvk::mutex                 m_mutex = { "DxvkGpuEventPool" };
     std::vector<DxvkGpuEvent*>  m_freeEvents;
 
   };

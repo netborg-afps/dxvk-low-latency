@@ -35,7 +35,7 @@ public:
 
 private:
 
-  dxvk::mutex m_mutex;
+  dxvk::mutex m_mutex = { "Singleton" };
   size_t      m_useCount  = 0;
   Rc<T>       m_object    = nullptr;;
 

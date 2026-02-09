@@ -388,7 +388,7 @@ namespace dxvk {
     
   private:
     
-    dxvk::mutex               m_mutex;
+    dxvk::mutex               m_mutex = { "DxvkCsChunkPool" };
     std::vector<DxvkCsChunk*> m_chunks;
     
   };
@@ -575,7 +575,7 @@ namespace dxvk {
     Rc<DxvkContext>             m_context;
 
     alignas(CACHE_LINE_SIZE)
-    dxvk::mutex                 m_counterMutex;
+    dxvk::mutex                 m_counterMutex = { "DxvkCsThread::m_counterMutex" };
 
     std::atomic<uint64_t>       m_seqHighPrio = { 0u };
     std::atomic<uint64_t>       m_seqOrdered  = { 0u };
@@ -584,7 +584,7 @@ namespace dxvk {
     std::atomic<bool>           m_hasHighPrio = { false };
 
     alignas(CACHE_LINE_SIZE)
-    dxvk::mutex                 m_mutex;
+    dxvk::mutex                 m_mutex = { "DxvkCsThread::m_mutex" };
     dxvk::condition_variable    m_condOnAdd;
     dxvk::condition_variable    m_condOnSync;
 

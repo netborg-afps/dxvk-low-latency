@@ -717,7 +717,7 @@ namespace dxvk {
     small_vector<uint16_t, 8>   m_uninitializedMipsPerLayer = { };
     uint32_t                    m_uninitializedSubresourceCount = 0u;
 
-    dxvk::mutex                 m_viewMutex;
+    dxvk::mutex                 m_viewMutex = { "DxvkImage::m_viewMutex" };
     std::unordered_map<DxvkImageViewKey,
       DxvkImageView, DxvkHash, DxvkEq> m_views;
 

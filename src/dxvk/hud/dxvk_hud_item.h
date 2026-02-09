@@ -193,7 +193,7 @@ namespace dxvk::hud {
 
   private:
 
-    sync::Spinlock  m_mutex;
+    sync::Spinlock  m_mutex = { "Spinlock HudClientApiItem" };
     std::string     m_api;
 
   };

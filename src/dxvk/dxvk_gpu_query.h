@@ -250,7 +250,7 @@ namespace dxvk {
     uint32_t            m_index = 0u;
     bool                m_ended = false;
 
-    sync::Spinlock      m_mutex;
+    sync::Spinlock      m_mutex = { "Spinlock DxvkQuery" };
     DxvkQueryData       m_queryData = { };
 
     small_vector<Rc<DxvkGpuQuery>, 8> m_queries;
@@ -313,7 +313,7 @@ namespace dxvk {
     VkQueryType       m_queryType     = VK_QUERY_TYPE_MAX_ENUM;
     uint32_t          m_queryPoolSize = 0u;
 
-    dxvk::mutex       m_mutex;
+    dxvk::mutex       m_mutex = { "DxvkGpuQueryAllocator" };
     std::list<Pool>   m_pools;
 
     DxvkGpuQuery*     m_free = nullptr;

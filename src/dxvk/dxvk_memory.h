@@ -317,7 +317,7 @@ namespace dxvk {
     VkBuffer          m_buffer          = VK_NULL_HANDLE;
     VkDeviceAddress   m_va              = 0u;
 
-    dxvk::mutex       m_mutex;
+    dxvk::mutex       m_mutex = { "DxvkResourceBufferViewMap" };
     std::unordered_map<DxvkBufferViewKey,
       DxvkDescriptor, DxvkHash, DxvkEq> m_views;
 
@@ -422,7 +422,7 @@ namespace dxvk {
     DxvkDevice*       m_device = nullptr;
     VkImage           m_image = VK_NULL_HANDLE;
 
-    dxvk::mutex       m_mutex;
+    dxvk::mutex       m_mutex = { "DxvkResourceImageViewMap" };
     std::unordered_map<DxvkImageViewKey,
       DxvkDescriptor, DxvkHash, DxvkEq> m_views;
 
@@ -926,11 +926,11 @@ namespace dxvk {
     alignas(CACHE_LINE_SIZE)
     DxvkMemoryAllocator*        m_allocator = nullptr;
 
-    dxvk::mutex                 m_freeMutex;
+    dxvk::mutex                 m_freeMutex = { "DxvkSharedAllocationCache::m_freeMutex" };
     std::array<FreeList, PoolCount> m_freeLists = { };
 
     alignas(CACHE_LINE_SIZE)
-    dxvk::mutex                 m_poolMutex;
+    dxvk::mutex                 m_poolMutex = { "DxvkSharedAllocationCache::m_poolMutex" };
     std::array<Pool, PoolCount> m_pools = { };
     std::array<List, PoolSize>  m_lists = { };
     int32_t                     m_nextList = -1;
@@ -1073,7 +1073,7 @@ namespace dxvk {
       }
     };
 
-    dxvk::mutex                 m_mutex;
+    dxvk::mutex                 m_mutex = { "DxvkRelocationList" };
 
     std::map<
       DxvkResourceMemoryInfo,
@@ -1337,7 +1337,7 @@ namespace dxvk {
 
     DxvkSharingModeInfo       m_sharingModeInfo;
 
-    dxvk::mutex               m_mutex;
+    dxvk::mutex               m_mutex = { "DxvkMemoryAllocator" };
 
     uint32_t m_memTypeCount = 0u;
     uint32_t m_memHeapCount = 0u;
@@ -1361,7 +1361,7 @@ namespace dxvk {
     std::array<DxvkMemoryStats, VK_MAX_MEMORY_HEAPS> m_adapterHeapStats = { };
 
     alignas(CACHE_LINE_SIZE)
-    dxvk::mutex               m_resourceMutex;
+    dxvk::mutex               m_resourceMutex = { "DxvkMemoryAllocator::m_resourceMutex" };
     std::unordered_map<uint64_t, DxvkPagedResource*> m_resourceMap;
 
     alignas(CACHE_LINE_SIZE)

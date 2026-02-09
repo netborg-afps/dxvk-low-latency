@@ -683,7 +683,7 @@ namespace dxvk {
     DxvkDevicePerfHints         m_perfHints;
     DxvkObjects                 m_objects;
 
-    sync::Spinlock              m_statLock;
+    sync::Spinlock              m_statLock = { "Spinlock DxvkDevice::m_statLock" };
     DxvkStatCounters            m_statCounters;
     
     DxvkRecycler<DxvkCommandList, 16> m_recycledCommandLists;

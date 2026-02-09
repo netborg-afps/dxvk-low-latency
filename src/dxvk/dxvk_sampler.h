@@ -375,8 +375,7 @@ namespace dxvk {
 
     DxvkSamplerDescriptorHeap m_descriptorHeap;
 
-    dxvk::mutex m_mutex;
-
+    dxvk::mutex m_mutex = { "DxvkSamplerPool" };
     std::array<SamplerEntry, MaxSamplerCount> m_samplers;
 
     std::unordered_map<DxvkSamplerKey, int32_t, DxvkHash, DxvkEq> m_samplerLut;

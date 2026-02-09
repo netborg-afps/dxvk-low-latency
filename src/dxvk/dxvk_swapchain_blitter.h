@@ -212,7 +212,7 @@ namespace dxvk {
     Rc<DxvkDevice>      m_device;
     Rc<hud::Hud>        m_hud;
 
-    dxvk::mutex         m_mutex;
+    dxvk::mutex         m_mutex = { "DxvkSwapchainBlitter" };
     Rc<DxvkBuffer>      m_gammaBuffer;
     Rc<DxvkImage>       m_gammaImage;
     Rc<DxvkImageView>   m_gammaView;

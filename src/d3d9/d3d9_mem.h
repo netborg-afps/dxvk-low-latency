@@ -119,7 +119,7 @@ namespace dxvk {
     private:
       void FreeChunk(D3D9MemoryChunk* Chunk);
 
-      dxvk::mutex m_mutex;
+      dxvk::mutex m_mutex = { "D3D9MemoryAllocator" };
       std::vector<std::unique_ptr<D3D9MemoryChunk>> m_chunks;
       std::atomic<size_t> m_mappedMemory = 0;
       std::atomic<size_t> m_allocatedMemory = 0;

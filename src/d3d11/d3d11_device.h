@@ -644,7 +644,7 @@ namespace dxvk {
     void LockBuffer(
       const Rc<DxvkBuffer>&           Buffer);
 
-    dxvk::mutex m_mapLock;
+    dxvk::mutex m_mapLock = { "D3D11DeviceExt" };
     std::unordered_map<uint32_t, ID3D11SamplerState*> m_samplerHandleToPtr;
     std::unordered_map<uint32_t, ID3D11ShaderResourceView*> m_srvHandleToPtr;
   };
@@ -810,7 +810,7 @@ namespace dxvk {
 
     bool              m_reflexEnabled = false;
 
-    dxvk::mutex       m_mutex;
+    dxvk::mutex       m_mutex { "D3D11ReflexDevice" };
 
     bool              m_enableLowLatency  = false;
     bool              m_enableBoost       = false;

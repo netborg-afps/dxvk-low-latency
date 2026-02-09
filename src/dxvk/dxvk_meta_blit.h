@@ -120,7 +120,7 @@ namespace dxvk {
 
     const DxvkPipelineLayout* m_layout = nullptr;
     
-    dxvk::mutex m_mutex;
+    dxvk::mutex m_mutex = { "DxvkMetaBlitObjects" };
     
     std::unordered_map<
       DxvkMetaBlitPipelineKey,

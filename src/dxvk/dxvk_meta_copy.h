@@ -210,7 +210,7 @@ namespace dxvk {
 
     DxvkDevice* m_device = nullptr;
 
-    dxvk::mutex m_mutex;
+    dxvk::mutex m_mutex = { "DxvkMetaCopyPipeline" };
 
     std::unordered_map<DxvkMetaImageCopyPipelineKey,
       DxvkMetaCopyPipeline, DxvkHash, DxvkEq> m_copyImagePipelines;

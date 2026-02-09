@@ -11,7 +11,7 @@ namespace dxvk {
 
   static Singleton<DxvkInstance>   g_dxvkInstance;
 
-  static dxvk::mutex               s_globalHDRStateMutex;
+  static dxvk::mutex               s_globalHDRStateMutex = { "s_globalHDRState" };
   static DXVK_VK_GLOBAL_HDR_STATE  s_globalHDRState{};
 
   DxgiVkFactory::DxgiVkFactory(DxgiFactory* pFactory)

@@ -43,7 +43,7 @@ namespace dxvk {
 
     IUnknown*   m_parent = nullptr;
 
-    dxvk::mutex m_mutex;
+    dxvk::mutex m_mutex = { "D3DDestructionNotifier" };
     uint32_t    m_nextId = 0u;
 
     small_vector<Entry, 2> m_callbacks;

@@ -42,14 +42,14 @@ namespace dxvk {
 
   private:
 
-    dxvk::mutex       m_mutex;
+    dxvk::mutex       m_mutex = { "D3D9Initializer" };
 
     D3D9DeviceEx*     m_parent;
     Rc<DxvkDevice>    m_device;
 
     size_t            m_transferCommands  = 0;
 
-    dxvk::mutex       m_csMutex;
+    dxvk::mutex       m_csMutex = { "D3D9Initializer::csMutex" };
     DxvkCsChunkRef    m_csChunk;
 
     void InitDeviceLocalBuffer(

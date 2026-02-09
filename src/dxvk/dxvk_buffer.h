@@ -415,7 +415,7 @@ namespace dxvk {
 
     Rc<DxvkResourceAllocation>  m_storage;
 
-    dxvk::mutex                 m_viewMutex;
+    dxvk::mutex                 m_viewMutex = { "DxvkBuffer::m_viewMutex" };
     std::unordered_map<DxvkBufferViewKey,
       DxvkBufferView, DxvkHash, DxvkEq> m_views;
 
