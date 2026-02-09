@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <cstring>
 
 #include "../../util/util_time.h"
 
@@ -111,6 +112,9 @@ namespace dxvk::hud {
         at = m_items.size();
 
       Rc<T> item;
+
+      if (!std::strcmp(name, "debug"))
+        enable = true;
 
       if (enable) {
         item = new T(std::forward<Args>(args)...);
@@ -861,6 +865,32 @@ namespace dxvk::hud {
 
     dxvk::high_resolution_clock::time_point m_lastUpdate
       = dxvk::high_resolution_clock::now();
+
+  };
+
+
+  class HudDebugStallsItem : public HudItem {
+  public:
+
+    HudDebugStallsItem();
+
+    ~HudDebugStallsItem();
+
+    void update(dxvk::high_resolution_clock::time_point time);
+
+    HudPos render(
+      const Rc<DxvkCommandList>&ctx,
+      const HudPipelineKey&     key,
+      const HudOptions&         options,
+            HudRenderer&        renderer,
+            HudPos              position);
+
+    constexpr static uint64_t print_threshold = 200;
+
+    static inline std::atomic<const char*> m_name         = { "" };
+    static inline std::atomic<uint64_t>    m_us           = { 0ull };
+    static inline std::atomic<uint64_t>    m_timestamp_ms = { 0ull };
+    static inline dxvk::high_resolution_clock::time_point m_startTime = { dxvk::high_resolution_clock::now() };
 
   };
 
