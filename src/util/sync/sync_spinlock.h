@@ -48,16 +48,13 @@ namespace dxvk::sync {
 
   public:
     
-    Spinlock() { }
+    Spinlock( const char* name = "") : m_name(name) { }
     ~Spinlock() { }
     
     Spinlock             (const Spinlock&) = delete;
     Spinlock& operator = (const Spinlock&) = delete;
     
-    void lock() {
-      spin(200, [this] { return try_lock(); });
-    }
-    
+    void lock();
     void unlock() {
       m_lock.store(0, std::memory_order_release);
     }
@@ -70,7 +67,8 @@ namespace dxvk::sync {
   private:
     
     std::atomic<uint32_t> m_lock = { 0 };
-    
+    const char* m_name;
+
   };
   
 }
