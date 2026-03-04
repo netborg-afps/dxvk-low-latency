@@ -3,7 +3,10 @@
 #include <atomic>
 #include <functional>
 #include <list>
+
+#ifdef _WIN32
 #include <synchapi.h>
+#endif
 
 #include "../rc/util_rc.h"
 
