@@ -4,10 +4,14 @@
 #include "dxvk_frame_sync.h"
 #include "dxvk_latency_markers.h"
 #include "dxvk_latency_stats.h"
+#include "dxvk_jitter_stats.h"
 #include "dxvk_calibrated_device_timestamps.h"
 #include "../dxvk_latency.h"
 #include "../../util/util_time.h"
 #include "../../util/sync/sync_ringbuffer_allocator.h"
+
+// test
+#include "dxvk_threaded_sleep.h"
 
 
 namespace dxvk {
@@ -34,8 +38,23 @@ namespace dxvk {
     void sleepAndBeginFrame(
             uint64_t                  frameId,
             double                    maxFrameRate) override {
+
+      LatencyMarkers* m = m_latencyMarkersStorage.getMarkers(frameId-1);
+      m->appThreadFinished = std::chrono::duration_cast<microseconds> (
+        high_resolution_clock::now() - m->start).count();
+
       // wait for finished rendering of a previous frame, typically the one before last
       m_frameSync.waitRenderFinished(frameId);
+
+      static high_resolution_clock::time_point m_lastKeyRegistered = high_resolution_clock::now();
+      high_resolution_clock::time_point now = high_resolution_clock::now();
+      if ((GetAsyncKeyState('N') & 0x8000)) {// || (GetAsyncKeyState(VK_RBUTTON) & 0x8000)) {
+        if (std::chrono::duration_cast<std::chrono::milliseconds> (now - m_lastKeyRegistered).count() > 300) {
+          ThreadedSleep::m_isThreaded = !ThreadedSleep::m_isThreaded;
+        }
+        m_lastKeyRegistered = now;
+      }
+
       // potentially wait some more if the cpu gets too much ahead
       m_mode->startFrame(frameId);
       m_latencyMarkersStorage.registerFrameStart(frameId);
@@ -198,6 +217,9 @@ namespace dxvk {
     int32_t getLatencyAverage() const
       { return m_latencyAverage.getAverage(); }
 
+    JitterTotal getJitterStats() const
+      { return m_jitterStats.getJitterTotal(); }
+
     const LatencyStats* getGpuBufferStats() const
       { return m_gpuBufferStats.load(); }
 
@@ -230,7 +252,28 @@ namespace dxvk {
     }
 
     void trackStats( uint64_t frameId ) {
+
+      using std::chrono::duration_cast;
+      const LatencyMarkers* m_prev2 = m_latencyMarkersStorage.getConstMarkers(frameId-2);
+      const LatencyMarkers* m_prev = m_latencyMarkersStorage.getConstMarkers(frameId-1);
       const LatencyMarkers* m = m_latencyMarkersStorage.getConstMarkers(frameId);
+
+      if (frameId > m_mode->getFirstFrameId()+2) {
+
+        JitterEntry e;
+        e.t = m->start;
+        e.frametime  = std::abs( duration_cast<microseconds>(m->start - m_prev->start).count()
+                               - duration_cast<microseconds>(m_prev->start - m_prev2->start).count() );
+        e.frametime += std::abs( duration_cast<microseconds>(m->end - m_prev->end).count()
+                               - duration_cast<microseconds>(m_prev->end - m_prev2->end).count() );
+        e.frametime >>= 1;
+
+        e.latency = std::abs( m->gpuFinished - m_prev->gpuFinished );
+        e.renderThreadLatency = std::abs( m->appThreadFinished - m_prev->appThreadFinished );
+
+        m_jitterStats.push( std::move(e) );
+
+      }
 
       // will be re-enabled for VK_EXT_present_timing, but for now this isn't accurate enough
       if (false && m_enableVSyncBufferTracking) {
@@ -268,6 +311,7 @@ namespace dxvk {
     std::atomic<LatencyStats*> m_gpuBufferStats = { nullptr };
     std::atomic<LatencyStats*> m_presentationStats = { nullptr };
     LatencyAverage m_latencyAverage;
+    JitterStats m_jitterStats;
 
     CalibratedDeviceTimestamps m_calibratedDeviceTimestamps;
     sync::RingbufferAllocator<VkQueryPool, 256> m_queryPools;

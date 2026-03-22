@@ -113,8 +113,6 @@ namespace dxvk {
   class LatencyAverage {
   public:
 
-    using time_point = high_resolution_clock::time_point;
-
     void push( int32_t latency ) {
 
       m_totalLatency -= m_latencies[m_curIndex];

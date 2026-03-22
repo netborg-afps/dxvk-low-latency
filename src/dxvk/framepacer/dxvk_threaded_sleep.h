@@ -30,15 +30,18 @@ namespace dxvk {
 
     void sleepUntil( const TimePoint& t ) {
 
-//     Sleep::sleepUntil(high_resolution_clock::now(), t);
+      if (!m_isThreaded)
+       Sleep::sleepUntil(high_resolution_clock::now(), t);
 
-      TimePoint t2 = t - std::chrono::microseconds(150);
-      if (high_resolution_clock::now() - std::chrono::microseconds(100) < t2) {
+      else {
+        TimePoint t2 = t - std::chrono::microseconds(150);
+        if (high_resolution_clock::now() - std::chrono::microseconds(100) < t2) {
 
-        m_t.store(t2);
-        m_start.signal_one();
-        m_finish.wait();
+          m_t.store(t2);
+          m_start.signal_one();
+          m_finish.wait();
 
+        }
       }
 
       TimePoint now;
@@ -63,6 +66,8 @@ namespace dxvk {
       m_finish.signal_one();
 
     }
+
+    static inline std::atomic<bool> m_isThreaded = { true };
 
   private:
 

@@ -1,6 +1,10 @@
 #include "dxvk_hud_item.h"
 #include "../framepacer/dxvk_framepacer.h"
 
+// test
+#include "../framepacer/dxvk_threaded_sleep.h"
+
+
 namespace dxvk::hud {
 
   HudRenderLatencyItem::HudRenderLatencyItem() { }
@@ -18,7 +22,18 @@ namespace dxvk::hud {
       m_lastUpdate = time;
 
       int32_t latency = framePacer->getLatencyAverage();
-      m_latency = str::format(latency / 1000, ".", (latency/100) % 10, " ms");
+      JitterTotal jitter = framePacer->getJitterStats();
+
+      if (jitter.count) {
+        float count_inv = 1.0/jitter.count;
+        jitter.frametime *= count_inv;
+        jitter.latency   *= count_inv;
+        jitter.renderThreadLatency *= count_inv;
+      }
+
+      m_latency = str::format(latency, " us",
+        " (", jitter.frametime, ", ", jitter.latency, ", ", jitter.renderThreadLatency, ") ",
+        " -- threaded : ", ThreadedSleep::m_isThreaded);
     }
   }
 
