@@ -34,6 +34,10 @@ namespace dxvk {
     void sleepAndBeginFrame(
             uint64_t                  frameId,
             double                    maxFrameRate) override {
+      LatencyMarkers* m = m_latencyMarkersStorage.getMarkers(frameId-1);
+      m->appThreadFinished = std::chrono::duration_cast<microseconds> (
+        high_resolution_clock::now() - m->start).count();
+
       // wait for finished rendering of a previous frame, typically the one before last
       m_frameSync.waitRenderFinished(frameId);
       // potentially wait some more if the cpu gets too much ahead
