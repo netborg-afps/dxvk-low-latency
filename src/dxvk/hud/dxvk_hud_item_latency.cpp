@@ -50,10 +50,10 @@ namespace dxvk::hud {
     if (!framePacer)
       return;
 
-    if (!framePacer->m_enableGpuBufferTracking)
-      framePacer->m_enableGpuBufferTracking.store(true);
-    if (!framePacer->m_enableVSyncBufferTracking && framePacer->getFramePacerMode()->getPresentMode() == VK_PRESENT_MODE_FIFO_KHR)
-      framePacer->m_enableVSyncBufferTracking.store(true);
+    if (!framePacer->m_enabledGpuBufferTracking)
+      framePacer->m_enabledGpuBufferTracking.store(true);
+    if (!framePacer->m_enabledVSyncBufferTracking && framePacer->getFramePacerMode()->getPresentMode() == VK_PRESENT_MODE_FIFO_KHR)
+      framePacer->m_enabledVSyncBufferTracking.store(true);
 
     auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(time - m_lastUpdate);
 

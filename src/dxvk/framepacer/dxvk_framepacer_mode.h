@@ -60,6 +60,9 @@ namespace dxvk {
     const char* getName() const
       { return m_name; }
 
+    uint64_t getFirstFrameId() const
+      { return m_firstFrameId; }
+
     static bool getDoubleFromEnv( const char* name, double* result );
     static bool getIntFromEnv( const char* name, int* result );
 
