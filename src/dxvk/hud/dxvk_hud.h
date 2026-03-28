@@ -61,10 +61,10 @@ namespace dxvk::hud {
     }
 
     template<typename T>
-    int32_t getItemPos() {
-      return m_hudItems.getItemPos<T>();
+    Rc<T> getItem() {
+      return m_hudItems.getItem<T>();
     }
-    
+
     /**
      * \brief Creates the HUD
      * 
