@@ -132,12 +132,13 @@ namespace dxvk::hud {
     }
 
     template<typename T>
-    int32_t getItemPos() {
+    Rc<T> getItem() {
       for (int i=0; i<(int)m_items.size(); ++i) {
-        if (dynamic_cast<T*>(m_items[i].ptr()))
-          return i;
+        T* item = dynamic_cast<T*>(m_items[i].ptr());
+        if (item)
+          return Rc<T> (item);
       }
-      return -1;
+      return Rc<T> (nullptr);
     }
 
   private:
