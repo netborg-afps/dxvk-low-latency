@@ -127,6 +127,7 @@ namespace dxvk {
 
     Rc<hud::HudLatencyItem>         m_latencyHud;
     Rc<hud::HudRenderLatencyItem>   m_renderLatencyHud;
+    Rc<hud::HudJitterItem>          m_jitterHud;
     Rc<hud::HudLatencyDetailsItem>  m_latencyDetailsHud;
 
     Rc<DxvkImageView> GetBackBufferView();

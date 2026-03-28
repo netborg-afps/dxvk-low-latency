@@ -940,6 +940,9 @@ namespace dxvk {
     if (m_renderLatencyHud)
       m_renderLatencyHud->updateLatencyTracker(m_latencyTracker);
 
+    if (m_jitterHud)
+      m_jitterHud->updateLatencyTracker(m_latencyTracker);
+
     if (m_latencyDetailsHud)
       m_latencyDetailsHud->updateLatencyTracker(m_latencyTracker);
 
@@ -1095,6 +1098,8 @@ namespace dxvk {
         if (framePacer) {
           m_renderLatencyHud = reinterpret_cast<hud::HudRenderLatencyItem*>(
             hud->getItem<hud::HudRenderLatencyItem>().ptr() );
+          m_jitterHud = reinterpret_cast<hud::HudJitterItem*>(
+            hud->getItem<hud::HudJitterItem>().ptr() );
           m_latencyDetailsHud = reinterpret_cast<hud::HudLatencyDetailsItem*>(
             hud->getItem<hud::HudLatencyDetailsItem>().ptr() );
         }
