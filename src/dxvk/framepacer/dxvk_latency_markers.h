@@ -21,6 +21,7 @@ namespace dxvk {
     time_point start;
     time_point end;
 
+    int32_t appThreadFinished;
     int32_t csStart;
     int32_t csFinished;
     int32_t cpuFinished;
