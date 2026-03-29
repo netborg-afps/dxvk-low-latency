@@ -6,12 +6,22 @@ Enhances the original [dxvk](https://github.com/doitsujin/dxvk) with low-latency
 
 - There is no need for configuration, but fine-tuning is possible via config options
 - Set `DXVK_FRAME_RATE=225` and `DXVK_FRAME_PACE=low-latency-vrr-235` for 240 Hz VRR gaming
+- Usage of [sched_ext](https://wiki.cachyos.org/configuration/sched-ext/) schedulers recommended for improved performance. If you don't know which to pick, `scx_cosmos -c 0 -p 0` is usually performing really well
 
 ### Installation
 
-The most common way to install is to replace the dxvk .dll files within the Proton directory. You can theoretically do this with Steam's Proton, but since Steam will periodically update Proton, it will regularly overwrite the .dll files, and thus it's instead recommended to put a Proton version into `$HOME/.local/share/Steam/compatibilitytools.d`, such as [Proton-GE](https://github.com/GloriousEggroll/proton-ge-custom) where you can find the .dll files in `files/lib/wine/dxvk`, `i386-windows` for 32 bit and `x86_64-windows` for 64 bit. Depending on the particular Proton version, the folders might be structured slightly differently. This Proton version then can be selected in Steam, Lutris, Heroic, etc.
+This project is included in [Proton-CachyOS](https://github.com/CachyOS/proton-cachyos) and can be activated there with:
 
-When using dxvk low-latency in Wine directly, see [How to use](https://github.com/netborg-afps/dxvk/?tab=readme-ov-file#how-to-use).
+```
+PROTON_DXVK_LOWLATENCY=1
+```
+
+
+While the above is the most convinient way to use dxvk low-latency, you can also install it manually by replacing the dxvk .dll files within any Proton directory. You can theoretically do this with Steam's Proton, but since Steam will periodically update Proton, it will regularly overwrite the .dll files, and thus it's instead recommended to put a Proton version into `$HOME/.local/share/Steam/compatibilitytools.d`, such as [GE-Proton](https://github.com/GloriousEggroll/proton-ge-custom) where you can find the .dll files in `files/lib/wine/dxvk`, `i386-windows` for 32 bit and `x86_64-windows` for 64 bit. Depending on the particular Proton version, the folder-structure might slightly differ. This Proton version then can be selected in Steam, Lutris, Heroic, etc.
+
+When using dxvk low-latency in Wine directly, see [How to use](https://github.com/netborg-afps/dxvk-low-latency/?tab=readme-ov-file#how-to-use).
+
+Another way it can be used, for example on Windows, is by copying the .dll files directly into the folder where the game executable is located. 
 
 ### Options
 
@@ -23,8 +33,8 @@ The config variable `dxvk.framePace` in `dxvk.conf` can be set to
 
 - `"max-frame-latency"` is the behaviour of upstream dxvk. Frame `i` won't start as long as frame `(i-1)-x` isn't finished, where `x` is the value of `dxgi.maxFrameLatency` / `d3d9.maxFrameLatency`. This pacing usually looks smooth, but has latency issues when GPU bound. Optimized for highest fps.
 - `"min-latency"` is essential like `max-frame-latency-0` (not selectable for the mode above), which means the start of a frame will wait until the previous one is finished. CPU/GPU no longer overlap during the transition from one frame to another and thus a lot of fps are sacrificed for prioritizing low latency. This mode is generally not recommended, but might be useful to get insights.
-- `"low-latency"` is the default mode: It combines high fps throughput with excellent game responsiveness and low input lag. Looking at a scale of a few seconds, pacing is usually more accurate in time than `max-frame-latency` since latency variations are minimized, especially when moving in and out of the GPU limit and when GPU frametimes vary a lot while being GPU bound. Looking at the pacing frame by frame, this mode relies on the game providing stable frame times for smoothness. When the game generates occasional stutters, these are filtered out nicely such that they don't interfere with the presentation of the other frames.
-- `"low-latency-vrr-240"` enhances the above mode by taking v-blank information into account which prevents additional v-sync buffering latency. This mode implicitly derives v-blanks based on render times and the given refresh rate of 240 Hz. Replace 240 with the refresh rate of your monitor or with a value lower than that. Care has to be taken that the system is configured such that the display is indeed using a variable refresh rate, otherwise this mode won't work properly.
+- `"low-latency"` is the default mode: It combines high fps throughput with excellent game responsiveness and low input lag. Looking at a scale of a few seconds, pacing is usually much more accurate in time than `max-frame-latency` since latency variations are minimized, especially when moving in and out of the GPU limit and when GPU frametimes vary a lot while being GPU bound. Looking at the pacing frame by frame, this mode relies on the game/scheduler/etc. providing stable frame times for smoothness. Recent improvements made this mode appear very smooth in a lot of games. 
+- `"low-latency-vrr-240"` enhances the above mode by taking v-blank information into account which prevents additional v-sync buffering latency. This mode implicitly derives v-blanks based on render times and the given refresh rate of 240 Hz. Replace 240 with the refresh rate of your monitor or with a value lower than that. To take full advantage of this mode, the system should be configured such that the display is indeed using a variable refresh rate.
 
 Setting the frame pacing via the environment variable `DXVK_FRAME_PACE` is also supported.
 
@@ -34,7 +44,7 @@ Fps limiting is very helpful when used together with VRR to give the pacing enou
 
 Note that the `"low-latency-vrr-x"` frame pacing option is also a form of fps limiting. It predictively limits at the end of the frame. The normal fps limiter limits at the (render-)start of the frame. It's often useful to have both active at the same time.
 
-Fps limiting is also useful in other modes to improve consistency and/or to save power. Limiting in the low-latency modes is tightly integrated into the frame pacing and is strongly recommended to be used in place of most ingame limiters. 
+Fps limiting is also useful in other modes to improve consistency and/or to save power. Limiting in the low-latency modes is tightly integrated into the frame pacing and is recommended to be used in place of most ingame limiters. This will depend on the particular games though, in some cases ingame limiters are providing lower latency, and often are not.
 
 If setting an fps limit so low that it will bore your GPU, this may result in your driver's heuristic clocking down the GPU, which can cause the latency to quadruple if you are unlucky. So you may want to watch out for that and take appropriate measures if desired.
 
@@ -44,7 +54,8 @@ Setting the fps limit via the environment variable `DXVK_FRAME_RATE` is also sup
 
 Latencies can be visualized by adding the following to `dxvk.hud`/`DXVK_HUD`:
 
-- `renderlatency`: start of frame (usually when the game starts processing input) until the GPU did finish rendering this frame. Note that this will not show the correct latency when a game's fps limiter is enabled, as there is no way to detect when a game will stall processing before reading input. Average over 100 frames.
+- `renderlatency`: time from `d3d.present()` to when the GPU did finish rendering this frame. Depending on the game engine, this may or may not include input sampling, see remarks [here](https://github.com/netborg-afps/dxvk-low-latency/?tab=readme-ov-file#frame-pipelining). Note that this will not show the correct latency when a game's fps limiter is enabled, as there is no way to detect whether the game is genuinely doing work or is idle. Average over 256 frames.
+- `jitter`: useful to evaluate smoothness performance -- from the game, the system, schedulers, etc. Jitter values are averaged over 30 seconds to display a stable value, and is measured for frametime, latency and app-thread latency. App-thread (render-thread) latency may be important for smoothness when the game for example is taking timestamps to optimize synchronization of input/simulation to its render thread. It may also be important to keep this thread stable when the game is performing other functionality within this thread. Lower jitter values suggest better smoothness.
 - `latencydetails`: provides insights about GPU buffer statistics. Helpful for fine-tuning the `dxvk.lowLatencyOffset` variable to reduce GPU buffering or to increase fps. Showing percentiles over the last 3 seconds. Recommended to care for the GPU buffer p75 (and p95) values if enough fps headroom is available. This display is also useful to check how external programs or specific system configurations are affecting input lag.
 
 #### dxvk.lowLatencyOffset
@@ -71,9 +82,11 @@ Generating one frame of a video game typically can be seen as a sequence of the 
 
 `input sampling -> frame simulation -> frame rendering -> present()`
 
-This frame pacing relies on games/engines following the simple principle of starting to process a new frame after finishing the previous one by calling the present() method of D3D. In the author's opinion, most games are actually doing this (at least for mouse input), as this is baked into the Direct 3D methodology, and games which care for input lag basically don't have another option. 
+This frame pacing optimizes the latency from `d3d.present()` to completing the rendering of the frame followed by `Vulkan.present()`. `d3d.present()` is equally the end of a frame and the start of the next frame, and dxvk manages the potential idle period in this function to control the point in time when the next frame starts. All games perform rendering in this loop. For most d3d8 and d3d9 games (pre 2010) this loop also includes input sampling and simulation, as they were mostly single-threaded, and thus they can offer excellent mouse/keyboard input via low-latency frame pacing.
 
-However, this is not guaranteed. There may be games out there not following this principle. For those, perfect frame pacing is impossible to achieve in the D3D domain.
+In today's multi-threaded game engines, this depends. Many game/engine devs cared about synchronizing input sampling and game simulation as best as possible to their render thread. The d3d model is well defined in this regard, so a lot of newer games are also running really well with low-latency frame pacing. In some cases game devs even late-latched the mouse input into the rendering, which can even offer lower latency mouse input than what would be achieved single-threaded. 
+
+However, it's not guaranteed that multi-threaded games are sychronizing input and simulation well to their render-loop. For those which are not, perfect frame pacing is impossible to achieve in the D3D domain.
 
 #### Display Manager Presentation
 
@@ -81,7 +94,7 @@ When dxvk is finished rendering a frame, the resulting image still needs to be t
 
 Since there is not that much information available on this topic, the author has tested some configurations which may help you to make an informed decision. The following results were obtained running a game at 1800 fps, which has the option to flash a monitor region instantly during a mouse button press, such that Nvidia's Reflex Analyzer is used to measure button-to-pixel latency on an Nvidia GPU (575.57.08 driver). These results may or may not be applicable to other hardware/drivers like AMD or Intel GPUs. 
 
-The top of the screen was selected as monitor region to make VRR, Mailbox and V-Sync more comparable to tearing (Immediate) in terms of latency. Since the measured latency will depend on the state of the screen refresh when the mouse button was pressed, many such samples give a latency range. Note that Wine Wayland is still experimental. The following measurements were taken in June 2025 and will be updated soon:
+The top of the screen was selected as monitor region to make VRR, Mailbox and V-Sync more comparable to tearing (Immediate) in terms of latency. Since the measured latency will depend on the state of the screen refresh when the mouse button was pressed, many such samples give a latency range. Note that Wine Wayland is still experimental. The following measurements were taken in June 2025 and will be updated "soon" (still relevant in early 2026):
 
 | Presentation      | Latency | fps |
 | :---------------- | :------: | :----: |
@@ -102,19 +115,19 @@ The top of the screen was selected as monitor region to make VRR, Mailbox and V-
 | Wine Wayland Plasma VRR| 1.7-4.6 ms | 357 fps |
 | Wine Wayland Gnome VRR| 2.0-4.9 ms | 357 fps |
 
-If you want to use x11, be sure that flip is enabled. This only works on single monitor configurations. On Nvidia, you can check if flip is enabled with `__GL_SHOW_GRAPHICS_OSD=1`. KDE Plasma should enable flip pretty straight forward, as does startx and possibly other lightweight window managers. However, sometimes the flip mode is dropped due to unknown reasons which was happening on both Gnome/x11 and Plasma/x11, which can be solved by restarting the GPU-driver and X server for example with `systemctl restart gdm.service`.
+If you want to use x11, be sure that flip is enabled. This only works on single monitor configurations. On Nvidia, you can check if flip is enabled with `__GL_SHOW_GRAPHICS_OSD=1`. KDE Plasma should enable flip pretty straight forward, as does startx and possibly other lightweight window managers. However, sometimes the flip mode is dropped due to unknown reasons which was happening on both Gnome/x11 and Plasma/x11, which can be solved by restarting the GPU-driver and X server for example with `systemctl restart gdm.service`. Certain games randomly initialize with flip/blit, for which `PROTON_NO_WM_DECORATION=1` may help to enforce flip.
 
 On Windows, the dxvk presentation is not optimal since support for the dxgi flip model is not implemented yet. It's strongly recommended to set `dxvk.allowFse = True` on Windows to enable the old fullscreen exclusive mode, which provides great performance and latency, but results in bad alt-tab behaviour.
 
 #### Wiki
 
-There are more things relevant to latency. SMT/Hyperthreading for example may increase latency by about 10% and may increase frame time variance depending on the game. SMT doesn't need to get disabled in BIOS, it can be turned on and off via command line too:
+There are more things relevant to latency. SMT/Hyperthreading for example may increase latency by about 10% and may increase frame time variance/jitter depending on the game. SMT doesn't need to get disabled in BIOS, it can be turned on and off via command line too:
 
 `sudo sh -c "echo off > /sys/devices/system/cpu/smt/control"`
 
-The kernel/scheduler also plays a role for latency.
+The kernel/scheduler also plays a role for latency and is particularly relevant to get lower jitter (better smoothness).
 
-There will be a wiki section soon, discussing all these latency topics not directly related to dxvk.
+There will be a wiki section "soon", discussing all these latency topics not directly related to dxvk.
 
 #### Original behaviour
 
