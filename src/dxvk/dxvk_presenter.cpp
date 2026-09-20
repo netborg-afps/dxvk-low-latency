@@ -892,7 +892,10 @@ namespace dxvk {
       Logger::err(str::format("Presenter: Failed to create Vulkan swapchain: ", status));
       return status;
     }
-    
+
+    if (Rc<FramePacer> pacer = m_framePacer)
+      pacer->registerSwapchain(m_swapchain);
+
     // Import actual swap chain images
     std::vector<VkImage> images;
 
@@ -1911,6 +1914,9 @@ namespace dxvk {
       m_vkd->vkDestroyFence(m_vkd->device(), sem.fence, nullptr);
     }
 
+    if (Rc<FramePacer> pacer = m_framePacer)
+      pacer->registerSwapchain(VK_NULL_HANDLE);
+
     // The conditional is here because some third party layers don't properly handle null swapchains
     if (m_swapchain)
       m_vkd->vkDestroySwapchainKHR(m_vkd->device(), m_swapchain, nullptr);
@@ -2083,7 +2089,9 @@ namespace dxvk {
     // which is not the case with other DxvkLatencyTracker objects, so
     // only store FramePacer instances here to prevent cyclic dependencies
     if (FramePacer* pacerPtr = dynamic_cast<FramePacer*>(tracker.ptr())) {
+      std::lock_guard lock(m_surfaceMutex);
       m_framePacer = pacerPtr;
+      m_framePacer->registerSwapchain(m_swapchain);
     } else {
       m_framePacer = nullptr;
     }

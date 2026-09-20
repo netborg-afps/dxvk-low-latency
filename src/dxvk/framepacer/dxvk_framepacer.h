@@ -198,6 +198,9 @@ namespace dxvk {
 
     // non-overriding methods
 
+    void registerSwapchain( VkSwapchainKHR swapchain ) {
+      m_calibratedSwapchainTimestamps.registerSwapchain( swapchain );
+    }
 
     VkResult getSubmitQueryPoolResult( VkQueryPool* queryPool, uint64_t* timestamp );
 
