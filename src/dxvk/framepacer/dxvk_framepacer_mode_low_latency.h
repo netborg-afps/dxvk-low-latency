@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dxvk_framepacer_mode.h"
+#include "dxvk_latency_stats.h"
 #include "dxvk_gpu_progress.h"
 #include "dxvk_threaded_sleep.h"
 #include "../dxvk_options.h"
@@ -57,7 +58,8 @@ namespace dxvk {
     : FramePacerMode(mode, mode == LOW_LATENCY ? "low-latency" : "low-latency-vrr", storage, frameSync, firstFrameId),
       m_lowLatencyOffset(getLowLatencyOffset(options)),
       m_allowCpuFramesOverlap(options.lowLatencyAllowCpuFramesOverlap),
-      m_gpuProgress(storage) {
+      m_gpuProgress(storage),
+      m_presentationStats(5000) {
       Logger::info( str::format("  lowLatencyOffset: ", m_lowLatencyOffset) );
       Logger::info( str::format("  lowLatencyAllowCpuFramesOverlap: ", m_allowCpuFramesOverlap) );
 
@@ -216,7 +218,22 @@ namespace dxvk {
     }
 
 
-    void endFrame( uint64_t frameId ) override { }
+    void endFrame( uint64_t frameId ) override {
+
+      if (m_mode == LOW_LATENCY_VRR_PRESENT_TIMING && frameId > m_firstFrameId+1) {
+        const LatencyMarkers* m1 = m_latencyMarkersStorage->getConstMarkers(frameId-1);
+        const LatencyMarkers* m2 = m_latencyMarkersStorage->getConstMarkers(frameId);
+
+        int32_t gpuFinishedInterval = std::chrono::duration_cast<microseconds>(
+          (m2->start + microseconds(m2->gpuFinished)) - (m1->start + microseconds(m1->gpuFinished))).count();
+
+        // only push values where we probably weren't running into v-sync buffering.
+        // otherwise we can get a presentation stats median drift due to feedback loop.
+        if (gpuFinishedInterval >= 0.99 * m_vrrRefreshInterval)
+          m_presentationStats.push( m2->end, m2->presentFinished - m2->gpuFinished );
+      }
+
+    }
 
 
 
@@ -372,6 +389,8 @@ namespace dxvk {
 
     ThreadedSleep m_threadedSleep;
     GpuProgress m_gpuProgress;
+
+    LatencyStats m_presentationStats;
 
   };
 
