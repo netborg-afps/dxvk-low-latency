@@ -1448,6 +1448,9 @@ namespace dxvk {
 
 
   void Presenter::updateTimingMode() {
+    if (Rc<FramePacer> pacer = m_framePacer; pacer && pacer->getMode())
+        return;
+
     m_timingMode.relativeTiming = false;
     m_timingMode.absoluteTiming = false;
 
