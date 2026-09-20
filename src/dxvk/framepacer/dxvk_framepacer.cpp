@@ -15,7 +15,8 @@ namespace dxvk {
 
 
   FramePacer::FramePacer( DxvkDevice* device, const DxvkOptions& options, uint64_t firstFrameId )
-  : m_latencyMarkersStorage(firstFrameId), m_device(device), m_calibratedDeviceTimestamps(device) {
+  : m_latencyMarkersStorage(firstFrameId), m_device(device),
+    m_calibratedSwapchainTimestamps(device), m_calibratedDeviceTimestamps(device) {
     // We'll default to LOW_LATENCY, which generally provides the best "input lag"
     // along with time consistency and often appears the smoothest too.
     // MAX_FRAME_LATENCY can have advantages in some games like God of War that provide inconsistent

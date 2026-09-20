@@ -6,6 +6,7 @@
 #include "dxvk_latency_stats.h"
 #include "dxvk_jitter_stats.h"
 #include "dxvk_calibrated_device_timestamps.h"
+#include "dxvk_calibrated_swapchain_timestamps.h"
 #include "../dxvk_latency.h"
 #include "../../util/util_time.h"
 #include "../../util/sync/sync_ringbuffer_allocator.h"
@@ -297,6 +298,7 @@ namespace dxvk {
     LatencyAverage m_latencyAverage;
     JitterStats m_jitterStats;
 
+    CalibratedSwapchainTimestamps m_calibratedSwapchainTimestamps;
     CalibratedDeviceTimestamps m_calibratedDeviceTimestamps;
     sync::RingbufferAllocator<VkQueryPool, 256> m_queryPools;
 

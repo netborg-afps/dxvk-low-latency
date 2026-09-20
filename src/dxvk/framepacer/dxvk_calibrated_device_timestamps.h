@@ -13,10 +13,6 @@ namespace dxvk {
    * to get calibrated regularly, for example once every frame, to account for
    * clock drift.
    *
-   * Assumes 64 bit timestamps are supported for now, as lower bit timestamps
-   * would need overflow checks and are impractical since 32 bit timestamps
-   * would wrap back to zero every 4 seconds at nanosecond precision.
-   *
    * Intended to be used within a single thread, not thread-safe.
    */
 
