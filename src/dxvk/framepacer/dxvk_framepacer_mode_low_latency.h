@@ -327,7 +327,16 @@ namespace dxvk {
     int32_t getFpsLimiterDelay( const LatencyMarkers* m, time_point now ) const {
 
       int32_t frametime = std::chrono::duration_cast<microseconds>( now - m->start ).count();
-      return std::max( 0, m_fpsLimitFrametime.load() - frametime );
+
+      // set an automatic fps limit in present_timing mode if no fps limit got set
+      // this is needed to provide a good balanced default to not make the presentation
+      // run too much into v-sync buffering while still providing good fps
+      // can be overriden by customizing the fps limit
+      int fpsLimitFrametime = m_fpsLimitFrametime.load( std::memory_order_relaxed );
+      if (m_mode == LOW_LATENCY_VRR_PRESENT_TIMING && m_vrrRefreshInterval && !fpsLimitFrametime)
+        fpsLimitFrametime = 1.05*m_vrrRefreshInterval;
+
+      return std::max( 0, fpsLimitFrametime - frametime );
 
     }
 
