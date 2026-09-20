@@ -91,6 +91,7 @@ namespace dxvk {
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
         m_frameSync.m_waitLatency = 1;
+        m_calibratedDeviceTimestamps.enable();
         m_mode = std::make_unique<MinLatencyMode>(mode, &m_latencyMarkersStorage, &m_frameSync, firstFrameId);
         break;
     }
