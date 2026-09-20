@@ -232,6 +232,8 @@ namespace dxvk {
     std::atomic< bool > m_enabledVSyncBufferTracking = { false };
     std::atomic< bool > m_enabledJitterTracking = { false };
 
+    DxvkDevice* m_device;
+
   private:
 
     void signalGpuStart( uint64_t frameId, LatencyMarkers* m, const time_point& t ) {
@@ -276,7 +278,7 @@ namespace dxvk {
       }
 
       // will be re-enabled for VK_EXT_present_timing, but for now this isn't accurate enough
-      if (false && m_enabledVSyncBufferTracking) {
+      if (m_enabledVSyncBufferTracking) {
         if (!m_presentationStats)
           m_presentationStats.store( new LatencyStats(3000) );
         m_presentationStats.load()->push( m->end, m->presentFinished - m->gpuFinished );
@@ -301,7 +303,6 @@ namespace dxvk {
       }
     }
 
-    DxvkDevice* m_device;
     std::unique_ptr<FramePacerMode> m_mode;
 
     std::array< std::atomic< uint16_t >, 8 > m_gpuStarts = { };
