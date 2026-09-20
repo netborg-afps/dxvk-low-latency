@@ -178,6 +178,8 @@ namespace dxvk {
     Rc<FramePacer> pacer = m_framePacer;
 
     uint64_t frameDeadline = 0u;
+    if (Rc<FramePacer> p = m_framePacer; p && p->getMode() == FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING)
+      m_presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
     VkPresentIdKHR presentId = { VK_STRUCTURE_TYPE_PRESENT_ID_KHR };
     presentId.swapchainCount = 1;
