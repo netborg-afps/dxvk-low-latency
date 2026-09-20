@@ -51,7 +51,6 @@ namespace dxvk {
       m_latencyMarkersStorage.registerFrameEnd(frameId);
       m_mode->endFrame(frameId);
       m_frameSync.signalFrameFinished(frameId);
-      m_gpuStarts[ (frameId-1) % m_gpuStarts.size() ].store(0);
       trackStats(frameId);
     }
 
@@ -154,6 +153,7 @@ namespace dxvk {
         m_latencyMarkersStorage.m_timeline.gpuFinished.store(frameId);
         m_mode->finishRender(frameId);
         m_frameSync.signalRenderFinished(frameId);
+        m_gpuStarts[ (frameId-1) % m_gpuStarts.size() ].store(0);
       }
     }
 
