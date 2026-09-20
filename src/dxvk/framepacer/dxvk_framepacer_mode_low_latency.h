@@ -97,7 +97,7 @@ namespace dxvk {
       SyncProps props = getSyncPrediction();
       int32_t targetGpuTime = props.optimizedGpuTime - props.cpuUntilGpuStart + m_lowLatencyOffset;
 
-      if (m_mode == LOW_LATENCY_VRR) {
+      if (m_mode == LOW_LATENCY_VRR || m_mode == LOW_LATENCY_VRR_PRESENT_TIMING) {
         int32_t vrrDelay = getVrrDelay( frameId, props, now );
         int32_t vrrGpuTime = vrrDelay - std::max( m->gpuStart, props.cpuUntilGpuStart );
         targetGpuTime = std::max( targetGpuTime, vrrGpuTime );
@@ -332,7 +332,7 @@ namespace dxvk {
     }
 
 
-    int32_t getVrrDelay( uint64_t frameId, const SyncProps& props, const time_point& now, const time_point& lastFrameFinishPrediction = time_point{} ) {
+    int32_t getVrrDelayImplicit( uint64_t frameId, const SyncProps& props, const time_point& now, const time_point& lastFrameFinishPrediction = time_point{} ) {
 
       if (m_mode != LOW_LATENCY_VRR)
         return 0;
@@ -355,6 +355,50 @@ namespace dxvk {
 
       int32_t expectedFrameLatency = props.cpuUntilGpuStart + props.optimizedGpuTime;
       return targetVBlank - expectedFrameLatency;
+
+    }
+
+
+    int32_t getVrrDelayPT( uint64_t frameId, const SyncProps& props, const time_point& now, const time_point& lastFrameFinishPrediction = time_point{} ) {
+
+      if (m_mode != LOW_LATENCY_VRR_PRESENT_TIMING)
+        return 0;
+
+      m_vrrRefreshInterval = m_ptRefreshIntervalUs.load( std::memory_order_relaxed );
+      if (!m_vrrRefreshInterval)
+        return 0;
+
+      int32_t presentDelay = m_presentationStats.getMedian( frameId );
+      uint64_t presentFinishedId = m_latencyMarkersStorage->getTimeline()->frameFinished.load();
+      const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(presentFinishedId);
+      int32_t lastVBlank = std::chrono::duration_cast<microseconds>( m->end - now ).count();
+
+      int32_t targetVBlank = lastVBlank + (frameId-presentFinishedId) * m_vrrRefreshInterval;
+
+      // set last v-blank if we have more information about the last frame
+      if (presentFinishedId == frameId-2 && lastFrameFinishPrediction != time_point{} ) {
+        int32_t vBlank = std::chrono::duration_cast<microseconds> (
+          lastFrameFinishPrediction - now).count() + presentDelay;
+        lastVBlank += m_vrrRefreshInterval;
+        lastVBlank = std::max( lastVBlank, vBlank );
+        targetVBlank = lastVBlank + m_vrrRefreshInterval;
+      }
+
+      int32_t expectedFrameLatency = props.cpuUntilGpuStart + props.optimizedGpuTime + presentDelay;
+      return targetVBlank - expectedFrameLatency;
+
+    }
+
+
+    int32_t getVrrDelay( uint64_t frameId, const SyncProps& props, const time_point& now, const time_point& lastFrameFinishPrediction = time_point{} ) {
+
+      if (m_mode == LOW_LATENCY_VRR)
+        return getVrrDelayImplicit(frameId, props, now, lastFrameFinishPrediction);
+
+      if (m_mode == LOW_LATENCY_VRR_PRESENT_TIMING)
+        return getVrrDelayPT(frameId, props, now, lastFrameFinishPrediction);
+
+      return 0;
 
     }
 

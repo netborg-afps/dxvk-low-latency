@@ -31,6 +31,8 @@ namespace dxvk {
     } else if (configStr.find("low-latency-vrr-") != std::string::npos) {
       mode = FramePacerMode::LOW_LATENCY_VRR;
       refreshRate = getRefreshRate(configStr);
+    } else if (configStr.find("low-latency-vrr") != std::string::npos) {
+      mode = FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING;
     } else if (configStr.find("low-latency") != std::string::npos) {
       mode = FramePacerMode::LOW_LATENCY;
     } else if (configStr.find("min-latency") != std::string::npos) {
@@ -40,6 +42,8 @@ namespace dxvk {
     } else if (options.framePace.find("low-latency-vrr-") != std::string::npos) {
       mode = FramePacerMode::LOW_LATENCY_VRR;
       refreshRate = getRefreshRate(options.framePace);
+    } else if (options.framePace.find("low-latency-vrr") != std::string::npos) {
+      mode = FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING;
     } else if (options.framePace.find("low-latency") != std::string::npos) {
       mode = FramePacerMode::LOW_LATENCY;
     } else if (options.framePace.find("min-latency") != std::string::npos) {
@@ -71,7 +75,15 @@ namespace dxvk {
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
         m_calibratedDeviceTimestamps.enable();
-        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkersStorage, &m_frameSync, options, firstFrameId, refreshRate);
+        m_mode = std::make_unique<LowLatencyMode>(FramePacerMode::LOW_LATENCY_VRR, &m_latencyMarkersStorage, &m_frameSync, options, firstFrameId, refreshRate);
+        break;
+
+      case FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING:
+        Logger::info( "Frame pace: low-latency-vrr (present_timing)" );
+        GpuFlushTracker::m_minPendingSubmissions = 1;
+        GpuFlushTracker::m_minChunkCount = 1;
+        m_calibratedDeviceTimestamps.enable();
+        m_mode = std::make_unique<LowLatencyMode>(FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING, &m_latencyMarkersStorage, &m_frameSync, options, firstFrameId, refreshRate);
         break;
 
       case FramePacerMode::MIN_LATENCY:

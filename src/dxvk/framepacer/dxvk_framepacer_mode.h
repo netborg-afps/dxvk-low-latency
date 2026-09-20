@@ -22,6 +22,7 @@ namespace dxvk {
       MAX_FRAME_LATENCY = 0,
       LOW_LATENCY,
       LOW_LATENCY_VRR,
+      LOW_LATENCY_VRR_PRESENT_TIMING,
       MIN_LATENCY
     };
 
