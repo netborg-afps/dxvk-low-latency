@@ -1574,7 +1574,7 @@ namespace dxvk {
   }
 
 
-  bool Presenter::updatePresentTiming(uint64_t frameId) {
+  bool Presenter::updatePresentTiming(uint64_t frameId, FramePacer* pacer) {
     // Need to access both timing stuff and the frame queue here
     std::lock_guard lock(m_timingMutex);
 
@@ -1646,6 +1646,9 @@ namespace dxvk {
 
       if (!report.reportComplete || !time.time || time.stage != m_timingMode.presentStage)
         continue;
+
+      if (pacer)
+          pacer->notifyGpuPresentEnd(report.presentId, time.time, time.stage, report.timeDomain, report.timeDomainId);
 
       uint64_t reportTimeLocal = translateTimestamp(
         report.timeDomain, report.timeDomainId, time.time,
@@ -2040,11 +2043,12 @@ namespace dxvk {
       // If the pacer is active, we record the present timing timestamps
       // and don't do any delaying in this thread
       FramePacer* pacer = dynamic_cast<FramePacer*>(frame.tracker.ptr());
-      bool gotPresentTiming = updatePresentTiming(frame.frameId);
+      bool devicePresentTiming = m_device->features().extPresentTiming.presentTiming;
+      bool gotPresentTiming = updatePresentTiming(frame.frameId, pacer);
 
       // Signal latency tracker right away to get more accurate
       // measurements if the frame rate limiter is enabled.
-      if (frame.tracker)
+      if (frame.tracker && (!pacer || !devicePresentTiming))
         frame.tracker->notifyGpuPresentEnd(frame.frameId);
 
       // Apply FPS limiter here to align it as closely with scanout as we can,

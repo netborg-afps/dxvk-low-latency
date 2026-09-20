@@ -47,12 +47,24 @@ namespace dxvk {
       m_latencyMarkersStorage.registerFrameStart(frameId);
     }
 
+    // the frame has been displayed to the screen
     void notifyGpuPresentEnd( uint64_t frameId ) override {
-      // the frame has been displayed to the screen
-      m_latencyMarkersStorage.registerFrameEnd(frameId);
+      notifyGpuPresentEnd(frameId, high_resolution_clock::now());
+    }
+
+    void notifyGpuPresentEnd( uint64_t frameId, time_point t ) {
+      m_latencyMarkersStorage.registerFrameEnd(frameId, t);
       m_mode->endFrame(frameId);
       m_frameSync.signalFrameFinished(frameId);
       trackStats(frameId);
+    }
+
+    void notifyGpuPresentEnd( uint64_t frameId, uint64_t swapchainTimestamp, VkPresentStageFlagsEXT stageFlags, VkTimeDomainKHR timeDomain, uint64_t timeDomainId ) {
+      m_calibratedSwapchainTimestamps.calibrate(stageFlags, timeDomain, timeDomainId);
+      time_point t = (swapchainTimestamp == 0)
+        ? high_resolution_clock::now()
+        : m_calibratedSwapchainTimestamps.getHostTimestamp(swapchainTimestamp);
+      notifyGpuPresentEnd(frameId, t);
     }
 
     void notifyCsRenderBegin( uint64_t frameId ) override {

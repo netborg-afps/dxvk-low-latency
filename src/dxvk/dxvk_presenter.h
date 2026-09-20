@@ -483,7 +483,7 @@ namespace dxvk {
 
     void recalibrateTimeDomains();
 
-    bool updatePresentTiming(uint64_t frameId);
+    bool updatePresentTiming(uint64_t frameId, FramePacer* pacer);
 
     void commitTimingFeedback(
       const PresenterTimingFeedback&  feedback);

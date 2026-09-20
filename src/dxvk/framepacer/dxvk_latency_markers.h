@@ -72,17 +72,16 @@ namespace dxvk {
       markers->start = now;
     }
 
-    void registerFrameEnd( uint64_t frameId ) {
+    void registerFrameEnd( uint64_t frameId, high_resolution_clock::time_point t ) {
       if (unlikely(frameId <= m_timeline.frameFinished.load())) {
         Logger::warn( str::format("internal error during registerFrameEnd: expected frameId=",
           m_timeline.frameFinished.load()+1, ", got: ", frameId) );
       }
-      auto now = high_resolution_clock::now();
 
       LatencyMarkers* markers = getMarkers(frameId);
       markers->presentFinished = std::chrono::duration_cast<std::chrono::microseconds>(
-        now - markers->start).count();
-      markers->end = now;
+        t - markers->start).count();
+      markers->end = t;
 
       m_timeline.frameFinished.store(frameId);
     }
