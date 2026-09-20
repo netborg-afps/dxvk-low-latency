@@ -1426,6 +1426,9 @@ namespace dxvk {
 
     // This can happen on some platforms. We can't meaningfully enable timing.
     if (!swapchainTiming.refreshDuration && !swapchainTiming.refreshInterval) {
+      m_ptRefreshIntervalUs.store( 0, std::memory_order_relaxed );
+      if (Rc<FramePacer> pacer = m_framePacer)
+        pacer->getFramePacerMode()->setRefreshInterval(0);
       Logger::warn(str::format("Presenter: Unable to determine display refresh rate"));
       return;
     }
@@ -1435,6 +1438,9 @@ namespace dxvk {
     // implies variable refresh rate.
     info.isVariableRefresh = swapchainTiming.refreshInterval == uint64_t(-1);
     info.refreshIntervalNs = swapchainTiming.refreshDuration;
+    m_ptRefreshIntervalUs.store( swapchainTiming.refreshDuration/1000, std::memory_order_relaxed );
+    if (Rc<FramePacer> pacer = m_framePacer)
+      pacer->getFramePacerMode()->setRefreshInterval(m_ptRefreshIntervalUs);
 
     if (!info.refreshIntervalNs && !info.isVariableRefresh)
       info.refreshIntervalNs = swapchainTiming.refreshInterval;
@@ -2095,6 +2101,7 @@ namespace dxvk {
     if (FramePacer* pacerPtr = dynamic_cast<FramePacer*>(tracker.ptr())) {
       std::lock_guard lock(m_surfaceMutex);
       m_framePacer = pacerPtr;
+      m_framePacer->getFramePacerMode()->setRefreshInterval(m_ptRefreshIntervalUs);
       m_framePacer->registerSwapchain(m_swapchain);
     } else {
       m_framePacer = nullptr;

@@ -63,6 +63,9 @@ namespace dxvk {
     uint64_t getFirstFrameId() const
       { return m_firstFrameId; }
 
+    void setRefreshInterval( uint64_t ptRefreshIntervalUs )
+      { m_ptRefreshIntervalUs = ptRefreshIntervalUs; }
+
     static bool getDoubleFromEnv( const char* name, double* result );
     static bool getIntFromEnv( const char* name, int* result );
 
@@ -77,6 +80,8 @@ namespace dxvk {
     std::atomic<uint32_t>   m_presentMode;
     std::atomic<int32_t>    m_fpsLimitFrametime = { 0 };
     bool                    m_fpsLimitEnvOverride = { false };
+
+    std::atomic<uint64_t>   m_ptRefreshIntervalUs = { 0 };
 
   };
 

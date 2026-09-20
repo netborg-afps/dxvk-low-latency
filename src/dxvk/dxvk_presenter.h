@@ -412,6 +412,7 @@ namespace dxvk {
 
     uint64_t                    m_lastSignaled = 0u;
     Rc<FramePacer>              m_framePacer;
+    std::atomic<uint64_t>       m_ptRefreshIntervalUs = { 0 };
 
     alignas(CACHE_LINE_SIZE)
     dxvk::mutex                             m_timingMutex;
