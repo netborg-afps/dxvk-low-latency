@@ -1020,8 +1020,10 @@ namespace dxvk {
       entry->second.frameLatencySignal = new sync::Fence(entry->second.frameId);
       entry->second.presenter = CreatePresenter(m_window, entry->second.frameLatencySignal);
 
-      if (m_presentParams.hDeviceWindow == m_window && m_latencyTracking)
+      if (m_presentParams.hDeviceWindow == m_window && m_latencyTracking) {
         m_latencyTracker = m_device->createLatencyTracker(entry->second.presenter, entry->second.frameId+1);
+        entry->second.presenter->registerLatencyTracker(m_latencyTracker);
+      }
     }
 
     m_wctx = &entry->second;
