@@ -354,16 +354,9 @@ namespace dxvk {
     if (m_signal == nullptr || !frameId)
       return;
 
-    if (m_hasPresentWait) {
-      std::lock_guard lock(m_frameMutex);
+    { std::lock_guard lock(m_frameMutex);
       m_lastSignaled = frameId;
       m_frameCond.notify_one();
-    } else {
-      m_fpsLimiter.delay(tracker);
-      m_signal->signal(frameId);
-
-      if (tracker)
-        tracker->notifyGpuPresentEnd(frameId);
     }
   }
 
