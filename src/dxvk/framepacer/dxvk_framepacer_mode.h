@@ -65,7 +65,8 @@ namespace dxvk {
       { return m_firstFrameId; }
 
     void setRefreshInterval( uint64_t ptRefreshIntervalUs )
-      { m_ptRefreshIntervalUs = ptRefreshIntervalUs; }
+      { Logger::info( str::format( "set refresh interval: ", ptRefreshIntervalUs ));
+      m_ptRefreshIntervalUs = ptRefreshIntervalUs; }
 
     static bool getDoubleFromEnv( const char* name, double* result );
     static bool getIntFromEnv( const char* name, int* result );

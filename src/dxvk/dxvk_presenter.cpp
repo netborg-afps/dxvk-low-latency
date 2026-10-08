@@ -1647,9 +1647,10 @@ namespace dxvk {
       if (!report.reportComplete || !time.time || time.stage != m_timingMode.presentStage)
         continue;
 
-      if (pacer)
+      if (pacer) {
+          Logger::info( str::format( report.presentId, " notify frame end via vkGetPastPresentationTimingEXT" ));
           pacer->notifyGpuPresentEnd(report.presentId, time.time, time.stage, report.timeDomain, report.timeDomainId);
-
+      }
       uint64_t reportTimeLocal = translateTimestamp(
         report.timeDomain, report.timeDomainId, time.time,
         VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT, m_timingMode.timeDomainId);
@@ -2031,9 +2032,11 @@ namespace dxvk {
           waitInfo.timeout = std::numeric_limits<uint64_t>::max();
 
           vr = m_vkd->vkWaitForPresent2KHR(m_vkd->device(), m_swapchain, &waitInfo);
+          Logger::info(str::format(frame.frameId, " vkWaitForPresent2KHR finished with result: ", vr));
         } else {
           vr = m_vkd->vkWaitForPresentKHR(m_vkd->device(),
             m_swapchain, frame.frameId, std::numeric_limits<uint64_t>::max());
+          Logger::info(str::format(frame.frameId, " vkWaitForPresentKHR finished with result: ", vr));
         }
 
         if (vr < 0 && vr != VK_ERROR_OUT_OF_DATE_KHR && vr != VK_ERROR_SURFACE_LOST_KHR)

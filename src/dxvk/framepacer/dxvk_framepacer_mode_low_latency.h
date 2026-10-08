@@ -122,20 +122,29 @@ namespace dxvk {
         int32_t maxDelay = std::max( m_fpsLimitFrametime.load(), 20000 );
         time_point maxSleep = m->start + microseconds(maxDelay);
 
+        Logger::info( str::format( frameId-1, " wait for m_gpuProgress " ));
         m_gpuProgress.waitUntil( frameId-1, targetGpuTime, props.cpuUntilGpuStart, maxSleep, m_threadedSleep );
         lastFrameFinishPrediction = high_resolution_clock::now()
           + microseconds(props.optimizedGpuTime - targetGpuTime);
+        Logger::info( str::format( frameId-1, " wait for m_gpuProgress completed " ));
       }
       else {
+        Logger::info( str::format( frameId-1, " wait for m_fenceGpuFinished " ));
         m_frameSync->m_fenceGpuFinished.wait( frameId-1 );
+        Logger::info( str::format( frameId-1, " wait for m_fenceGpuFinished completed " ));
       }
 
-      props = getSyncPrediction();
-      now = high_resolution_clock::now();
-      int32_t cpuDelay = getCpuDelay( props, m, now );
-      int32_t delay = std::max( cpuDelay, getFpsLimiterDelay( m, now ) );
-      delay = std::max( delay, getVrrDelay( frameId, props, now, lastFrameFinishPrediction ) );
-      sleepFor( now, delay );
+      // we might have more up-to date information like new v-blank data
+      // after a first sleep, repeat once
+      for (int i=0; i<2; ++i) {
+        props = getSyncPrediction();
+        now = high_resolution_clock::now();
+        int32_t cpuDelay = getCpuDelay( props, m, now );
+        int32_t delay = std::max( cpuDelay, getFpsLimiterDelay( m, now ) );
+        delay = std::max( delay, getVrrDelay( frameId, props, now, lastFrameFinishPrediction ) );
+        Logger::info( str::format( frameId, " sleep for ", delay ));
+        sleepFor( now, delay );
+      }
 
     }
 
@@ -334,7 +343,7 @@ namespace dxvk {
       // can be overriden by customizing the fps limit
       int fpsLimitFrametime = m_fpsLimitFrametime.load( std::memory_order_relaxed );
       if (m_mode == LOW_LATENCY_VRR_PRESENT_TIMING && m_vrrRefreshInterval && !fpsLimitFrametime)
-        fpsLimitFrametime = 1.05*m_vrrRefreshInterval;
+        fpsLimitFrametime = 1.06*m_vrrRefreshInterval;
 
       return std::max( 0, fpsLimitFrametime - frametime );
 
@@ -377,20 +386,30 @@ namespace dxvk {
       if (!m_vrrRefreshInterval)
         return 0;
 
+      int32_t vrrRefreshInterval = m_vrrRefreshInterval * 1.04;// + m_lowLatencyOffset;
+//      vrrRefreshInterval = std::max( vrrRefreshInterval, (int32_t) (m_fpsLimitFrametime.load() * 1.04) );
+      int32_t vrrOffset = vrrRefreshInterval - m_vrrRefreshInterval;
+      Logger::info( str::format( frameId, " vrr offset: ", vrrOffset ) );
+
       int32_t presentDelay = m_presentationStats.getMedian( frameId );
       uint64_t presentFinishedId = m_latencyMarkersStorage->getTimeline()->frameFinished.load();
       const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(presentFinishedId);
       int32_t lastVBlank = std::chrono::duration_cast<microseconds>( m->end - now ).count();
 
-      int32_t targetVBlank = lastVBlank + (frameId-presentFinishedId) * m_vrrRefreshInterval;
+      int32_t targetVBlank = lastVBlank + (frameId-presentFinishedId) * vrrRefreshInterval;
+
+      int32_t age = frameId - presentFinishedId;
+      Logger::info( str::format( frameId, " v-blank age: ", age ) );
 
       // set last v-blank if we have more information about the last frame
       if (presentFinishedId == frameId-2 && lastFrameFinishPrediction != time_point{} ) {
         int32_t vBlank = std::chrono::duration_cast<microseconds> (
-          lastFrameFinishPrediction - now).count() + presentDelay;
-        lastVBlank += m_vrrRefreshInterval;
+          lastFrameFinishPrediction - now).count() + presentDelay + vrrOffset;
+        lastVBlank += vrrRefreshInterval;
+        Logger::info( str::format( frameId, " v-blank compare: ", lastVBlank, " vs. ",  vBlank) );
         lastVBlank = std::max( lastVBlank, vBlank );
-        targetVBlank = lastVBlank + m_vrrRefreshInterval;
+        targetVBlank = lastVBlank + vrrRefreshInterval;
+        Logger::info( str::format( frameId, " target v-blank: ", targetVBlank ) );
       }
 
       int32_t expectedFrameLatency = props.cpuUntilGpuStart + props.optimizedGpuTime + presentDelay;
