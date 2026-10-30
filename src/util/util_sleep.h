@@ -47,6 +47,7 @@ namespace dxvk {
 
     dxvk::mutex       m_mutex;
     std::atomic<bool> m_initialized = { false };
+    bool              m_onWine = { false };
 
 #ifdef _WIN32
     // On Windows, we use NtDelayExecution which has units of 100ns.
@@ -72,6 +73,8 @@ namespace dxvk {
     TimePoint sleep(TimePoint t0, TimerDuration duration);
 
     void systemSleep(TimerDuration duration);
+
+    static void pause();
 
   };
 
