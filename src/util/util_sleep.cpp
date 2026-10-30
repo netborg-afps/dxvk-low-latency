@@ -27,7 +27,7 @@ namespace dxvk {
       return;
 
     initializePlatformSpecifics();
-    m_sleepThreshold = 4 * m_sleepGranularity;
+    m_sleepThreshold = m_onWine ? m_sleepGranularity : 4 * m_sleepGranularity;
 
     m_initialized.store(true);
   }
@@ -57,6 +57,22 @@ namespace dxvk {
           m_sleepGranularity = TimerDuration(max);
         }
       }
+
+      // If wine_get_version exists, we are on Linux/Proton and profit from better timer resolution
+      if (GetProcAddress(ntdll, "wine_get_version") != NULL) {
+        m_onWine = true;
+      } else {
+        // Fallback: Proton might hide exports in some games
+        // We can still query for Wine using the Registry
+        HKEY hKey = NULL;
+        if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, "System\\CurrentControlSet\\Services\\WineBus", 0, KEY_READ, &hKey) == ERROR_SUCCESS) {
+          m_onWine = true;
+          RegCloseKey(hKey);
+        }
+      }
+
+      if (m_onWine)
+        m_sleepGranularity = TimerDuration(125us);
     } else {
       // Assume 1ms sleep granularity by default
       m_sleepGranularity = TimerDuration(1ms);
@@ -78,32 +94,31 @@ namespace dxvk {
 
     // Busy-wait for the last couple of milliseconds since sleeping
     // on Windows is highly inaccurate and inconsistent.
+    // on Wine we get Linux timer precision, handle it differently
     TimerDuration sleepThreshold = m_sleepThreshold;
 
-    if (m_sleepGranularity != TimerDuration::zero())
+    if (!m_onWine && m_sleepGranularity != TimerDuration::zero())
       sleepThreshold += duration / 6;
 
-    TimerDuration remaining = duration;
-    TimePoint t1 = t0;
+    using std::chrono::microseconds;
+    TimePoint target = t0 + duration;
+    TimePoint coarseTarget = target - sleepThreshold;
 
-    while (remaining > sleepThreshold) {
-      TimerDuration sleepDuration = remaining - sleepThreshold;
+    TimePoint now = high_resolution_clock::now();
 
+    while (now + std::chrono::microseconds(50) < coarseTarget) {
+      TimerDuration sleepDuration = std::chrono::duration_cast<TimerDuration>(coarseTarget - now);
       systemSleep(sleepDuration);
-
-      t1 = dxvk::high_resolution_clock::now();
-      remaining -= std::chrono::duration_cast<TimerDuration>(t1 - t0);
-      t0 = t1;
+      now = high_resolution_clock::now();
     }
 
     // Busy-wait until we have slept long enough
-    while (remaining > TimerDuration::zero()) {
-      t1 = dxvk::high_resolution_clock::now();
-      remaining -= std::chrono::duration_cast<TimerDuration>(t1 - t0);
-      t0 = t1;
+    while (now < target) {
+      pause();
+      now = high_resolution_clock::now();
     }
 
-    return t1;
+    return now;
   }
 
 
@@ -120,6 +135,18 @@ namespace dxvk {
 #else
     std::this_thread::sleep_for(duration);
 #endif
+  }
+
+
+  void Sleep::pause() {
+    #if defined(DXVK_ARCH_X86)
+    _mm_pause();
+    #elif defined(DXVK_ARCH_ARM64)
+    __asm__ __volatile__ ("yield");
+    #else
+    /* Do nothing (busy-loop). Please add more #elif above here if
+    * your CPU architecture has a suitable pause/yield instruction */
+    #endif
   }
 
 }

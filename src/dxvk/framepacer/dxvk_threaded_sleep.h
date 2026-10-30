@@ -31,7 +31,7 @@ namespace dxvk {
 
     void sleepUntil( const TimePoint& t ) {
 
-      constexpr bool threadedSleep = true;
+      constexpr bool threadedSleep = false;
       if constexpr (!threadedSleep) {
         Sleep::sleepUntil(high_resolution_clock::now(), t);
         return;
