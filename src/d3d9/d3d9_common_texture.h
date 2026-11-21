@@ -195,6 +195,28 @@ namespace dxvk {
             D3D9_COMMON_TEXTURE_DESC*  pDesc);
 
     /**
+     * \brief Validates the D3DUSAGES in CreateXYZEx functions
+     *
+     * \param Usage Usage flags passed to the create function
+     * \param pSharedHandle Shared handle passed to the create function
+     * \return true if the passed flags combined with the handle are fine, false if not.
+     */
+    static HRESULT ValidateExUsages(DWORD Usage, HANDLE* pSharedHandle) {
+      // The new Create functions added in 9Ex only accept the new USAGE flags added with 9Ex.
+      // Yes, it actually fails when explicitly passing D3DUSAGE_RENDERTARGET in CreateRenderTargetEx
+      // and D3DUSAGE_DEPTHSTENCIL in CreateDepthStencilSurfaceEx.
+      if (unlikely(Usage & ~(D3DUSAGE_RESTRICTED_CONTENT | D3DUSAGE_RESTRICT_SHARED_RESOURCE | D3DUSAGE_RESTRICT_SHARED_RESOURCE_DRIVER)))
+        return false;
+
+      // The shared flags only work if a shared handle is passed.
+      if (unlikely((Usage & (D3DUSAGE_RESTRICT_SHARED_RESOURCE | D3DUSAGE_RESTRICT_SHARED_RESOURCE_DRIVER)) != 0
+        && pSharedHandle == nullptr))
+        return false;
+
+      return true;
+    }
+
+    /**
      * \brief Returns whether a Vulkan image is used for this D3D9 texture
      *
      * \param pDesc The texture description
@@ -474,23 +496,24 @@ namespace dxvk {
     }
 
     /**
-     * \brief Mip level
-     * \returns Size of packed mip level in bytes
+     * \brief Subresource size
+     * \returns Size of packed subresource level in bytes
      */
-    VkDeviceSize GetMipSize(UINT Subresource) const;
+    VkDeviceSize GetSubresourceSize(UINT Subresource) const;
 
     uint32_t GetTotalSize() const {
-      return m_totalSize;
+      // Add a tiny amount of padding at the end because some games read/write OOB
+      // Medieval: Total War 1 for example seems to have an off-by-one bug in copying data for a managed texture.
+      return align(m_totalSize + 1, CACHE_LINE_SIZE);
     }
 
     /**
      * \brief Creates a buffer
      * Creates the mapping buffer if necessary
      * \param [in] Initialize Whether to copy over existing data (or clear if there is no data)
-     * \param [in] Size The size of the buffer
      * \returns Whether an allocation happened
      */
-    void CreateBuffer(bool Initialize, uint32_t Size);
+    const Rc<DxvkBuffer>& EnsureBufferExists(bool Initialize = true);
 
     ID3D9VkInteropTexture* GetVkInterop() { return &m_d3d9Interop; }
 

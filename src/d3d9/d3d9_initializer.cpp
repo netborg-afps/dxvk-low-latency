@@ -43,6 +43,8 @@ namespace dxvk {
           void*              pInitialData) {
     if (pTexture->GetMapMode() == D3D9_COMMON_TEXTURE_MAP_MODE_NONE)
       return;
+    if (pTexture->GetImage() != nullptr && pTexture->GetImage()->info().sharing.mode == DxvkSharedHandleMode::Import)
+      return;
 
     void* mapPtr = nullptr;
 
@@ -160,7 +162,7 @@ namespace dxvk {
 
   void D3D9Initializer::ExecuteFlushLocked() {
     EmitCs([] (DxvkContext* ctx) {
-      ctx->flushCommandList(nullptr, nullptr);
+      ctx->flushCommandList(nullptr, 0u);
     });
 
     FlushCsChunk();
@@ -170,7 +172,7 @@ namespace dxvk {
 
 
   void D3D9Initializer::SyncSharedTexture(D3D9CommonTexture* pResource) {
-    if (pResource->GetImage() == nullptr || pResource->GetImage()->info().sharing.mode == DxvkSharedHandleMode::None)
+    if (pResource->GetImage() == nullptr || pResource->GetImage()->info().sharing.mode != DxvkSharedHandleMode::Export)
       return;
 
     // Ensure that initialization commands are submitted and waited on before

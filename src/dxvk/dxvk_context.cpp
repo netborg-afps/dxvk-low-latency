@@ -135,6 +135,8 @@ namespace dxvk {
 
 
   void DxvkContext::endFrame() {
+    this->endRenderPass(true);
+
     m_renderPassIndex = 0u;
 
     if (m_frameCount >= m_framesToCapture.first && m_frameCount < m_framesToCapture.second)
@@ -169,7 +171,7 @@ namespace dxvk {
 
   void DxvkContext::flushCommandList(
     const VkDebugUtilsLabelEXT*       reason,
-          DxvkSubmitStatus*           status) {
+          uint64_t                    submissionId) {
     // If necessary, block any async queue on previous command completion
     if (m_submitWaitId)
       m_cmd->waitFence(m_trackingFence, std::exchange(m_submitWaitId, 0ull));
@@ -191,7 +193,7 @@ namespace dxvk {
 
     auto [cmdList, queryPool] = this->endRecording(reason);
     m_device->submitCommandList(cmdList,
-      m_latencyTracker, m_latencyFrameId, queryPool, status);
+      m_latencyTracker, m_latencyFrameId, queryPool, submissionId);
 
     // Ensure that subsequent submissions do not see the tracker.
     // It is important to hide certain internal submissions in
@@ -2469,18 +2471,20 @@ namespace dxvk {
                                           | VK_PIPELINE_STAGE_GEOMETRY_SHADER_BIT
                                           | VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
 
-      bool needsNewBackingStorage = (dstImage->info().stages & graphicsStages)
-        && dstImage->isTracked(m_trackingId, DxvkAccess::Write);
+      bool needsNewBackingStorage = false;
 
-      // We never make MSAA passes unsynchronized, so this should be fine
-      if (needsNewBackingStorage && dstImage->hasGfxStores()) {
-        needsNewBackingStorage = resourceHasAccess(*dstImage, dstSubresource, DxvkAccess::Read, DxvkAccessOp::None)
-                              || resourceHasAccess(*dstImage, dstSubresource, DxvkAccess::Write, DxvkAccessOp::None);
+      if (dstImage->info().stages & graphicsStages) {
+        // We never make MSAA passes unsynchronized, so this should be fine
+        if (dstImage->hasGfxStores()) {
+          needsNewBackingStorage = resourceHasAccess(*dstImage, dstSubresource, DxvkAccess::Read, DxvkAccessOp::None)
+                                || resourceHasAccess(*dstImage, dstSubresource, DxvkAccess::Write, DxvkAccessOp::None);
+        } else {
+          dstImage->trackGfxStores();
+
+          needsNewBackingStorage = dstImage->isTracked(
+            m_trackingId, DxvkAccess::Write);
+        }
       }
-
-      // Enable tracking so that we don't unnecessarily hit slow paths in the future
-      if (dstImage->info().stages & graphicsStages)
-        needsNewBackingStorage |= !dstImage->trackGfxStores();
 
       if (needsNewBackingStorage) {
         auto imageSubresource = dstImage->getAvailableSubresources();
@@ -8776,29 +8780,6 @@ namespace dxvk {
   }
 
 
-  bool DxvkContext::tryInvalidateDeviceLocalBuffer(
-      const Rc<DxvkBuffer>&           buffer,
-            VkDeviceSize              copySize) {
-    // We can only discard if the full buffer gets written, and we will only discard
-    // small buffers in order to not waste significant amounts of memory.
-    if (copySize != buffer->info().size || copySize > 0x40000)
-      return false;
-
-    // Check if the buffer is safe to move at all
-    if (!buffer->canRelocate())
-      return false;
-
-    // Suspend the current render pass if transform feedback is active prior to
-    // invalidating the buffer, since otherwise we may invalidate a bound buffer.
-    if ((buffer->info().usage & VK_BUFFER_USAGE_TRANSFORM_FEEDBACK_COUNTER_BUFFER_BIT_EXT)
-     && (m_flags.test(DxvkContextFlag::GpXfbActive)))
-      this->endCurrentPass(true);
-
-    this->invalidateBuffer(buffer, buffer->allocateStorage());
-    return true;
-  }
-
-
   Rc<DxvkImageView> DxvkContext::ensureImageViewCompatibility(
     const Rc<DxvkImageView>&        view,
           VkImageUsageFlagBits      usage) {
@@ -9714,15 +9695,18 @@ namespace dxvk {
 
 
   void DxvkContext::prepareSharedImages() {
-    // Only flush clears for shared images, and restore layouts
-    bool hasSharedClear = false;
+    small_vector<Rc<DxvkImage>, 8u> imagesToClear;
 
-    for (const auto& image : m_nonDefaultLayoutImages) {
-      if (image->info().shared)
-        hasSharedClear = flushDeferredClear(*image, image->getAvailableSubresources());
+    // Only flush clears for shared images, and restore layouts
+    for (const auto& clear : m_deferredClears) {
+      if (clear.imageView->image()->info().shared)
+        imagesToClear.push_back(clear.imageView->image());
     }
 
-    if (hasSharedClear)
+    for (const auto& image : imagesToClear)
+      flushDeferredClear(*image, image->getAvailableSubresources());
+
+    if (!imagesToClear.empty())
       flushBarriers();
 
     restoreImageLayouts([] (DxvkImage& image) {

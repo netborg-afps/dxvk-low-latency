@@ -48,7 +48,7 @@ namespace dxvk {
   void DxvkSubmissionQueue::submit(
           DxvkSubmitInfo            submitInfo,
           DxvkLatencyInfo           latencyInfo,
-          DxvkSubmitStatus*         status) {
+          uint64_t                  submissionId) {
     if (latencyInfo.tracker)
       latencyInfo.tracker->notifySubmit(latencyInfo.frameId);
     std::unique_lock<dxvk::mutex> lock(m_mutex);
@@ -58,7 +58,7 @@ namespace dxvk {
     });
 
     DxvkSubmitEntry entry = { };
-    entry.status = status;
+    entry.timeline = submissionId;
     entry.submit = std::move(submitInfo);
     entry.latency = std::move(latencyInfo);
 
@@ -70,13 +70,13 @@ namespace dxvk {
   void DxvkSubmissionQueue::present(
           DxvkPresentInfo           presentInfo,
           DxvkLatencyInfo           latencyInfo,
-          DxvkSubmitStatus*         status) {
+          uint64_t                  submissionId) {
     if (latencyInfo.tracker)
       latencyInfo.tracker->notifyPresent(presentInfo.frameId);
     std::unique_lock<dxvk::mutex> lock(m_mutex);
 
     DxvkSubmitEntry entry = { };
-    entry.status  = status;
+    entry.timeline = submissionId;
     entry.present = std::move(presentInfo);
     entry.latency = std::move(latencyInfo);
 
@@ -85,13 +85,8 @@ namespace dxvk {
   }
 
 
-  void DxvkSubmissionQueue::synchronizeSubmission(
-          DxvkSubmitStatus*   status) {
-    std::unique_lock<dxvk::mutex> lock(m_mutex);
-
-    m_submitCond.wait(lock, [status] {
-      return status->result.load() != VK_NOT_READY;
-    });
+  void DxvkSubmissionQueue::synchronizeSubmission(uint64_t submissionId) {
+    m_submitTimeline.wait(submissionId);
   }
 
 
@@ -154,8 +149,11 @@ namespace dxvk {
         entry = std::move(m_submitQueue.front());
       }
 
-      // Submit command buffer to device
-      if (m_lastError != VK_ERROR_DEVICE_LOST) {
+      // Submit command buffer to device. Don't submit anything after
+      // device loss so that drivers get a chance to recover
+      VkResult status = m_lastError;
+
+      if (status != VK_ERROR_DEVICE_LOST) {
         std::lock_guard<dxvk::mutex> lock(m_mutexQueue);
 
         if (m_callback)
@@ -169,20 +167,20 @@ namespace dxvk {
               trackedSubmitId = entry.latency.frameId;
           }
 
-          entry.result = entry.submit.cmdList->submit(
+          status = entry.submit.cmdList->submit(
             m_semaphores, m_timelines, trackedSubmitId);
           entry.timelines = m_timelines;
         } else if (entry.present.presenter != nullptr) {
           if (entry.latency.tracker)
             entry.latency.tracker->notifyQueuePresentBegin(entry.latency.frameId);
 
-          entry.result = entry.present.presenter->presentImage(
+          status = entry.present.presenter->presentImage(
             entry.present.frameId, entry.latency.tracker,
             entry.present.rects.size(), entry.present.rects.data());
 
           if (entry.latency.tracker) {
             entry.latency.tracker->notifyQueuePresentEnd(
-              entry.latency.frameId, entry.result);
+              entry.latency.frameId, status);
 
             trackedPresentId = entry.latency.frameId;
             trackedSubmitId = 0u;
@@ -191,33 +189,29 @@ namespace dxvk {
 
         if (m_callback)
           m_callback(false);
-      } else {
-        // Don't submit anything after device loss
-        // so that drivers get a chance to recover
-        entry.result = VK_ERROR_DEVICE_LOST;
       }
 
-      if (entry.status)
-        entry.status->result = entry.result;
+      if (entry.timeline)
+        m_submitTimeline.signal(entry.timeline);
 
-      if (entry.result == VK_ERROR_DEVICE_LOST && m_checkpoints)
+      if (status == VK_ERROR_DEVICE_LOST && m_checkpoints)
         m_checkpoints->printHangInfo();
 
       // On success, pass it on to the queue thread
       { std::unique_lock<dxvk::mutex> lock(m_mutex);
 
-        bool doForward = (entry.result == VK_SUCCESS) ||
-          (entry.present.presenter != nullptr && entry.result != VK_ERROR_DEVICE_LOST);
+        bool doForward = (status == VK_SUCCESS) ||
+          (entry.present.presenter && status != VK_ERROR_DEVICE_LOST);
 
         if (doForward) {
           m_finishQueue.push(std::move(entry));
         } else {
-          Logger::err(str::format("DxvkSubmissionQueue: Command submission failed: ", entry.result));
-          m_lastError = entry.result;
+          Logger::err(str::format("DxvkSubmissionQueue: Command submission failed: ", status));
+          m_lastError = status;
           if (entry.latency.tracker)
             entry.latency.tracker->freeSubmitQueryPool(entry.submit.queryPool);
 
-          if (m_lastError != VK_ERROR_DEVICE_LOST)
+          if (status != VK_ERROR_DEVICE_LOST)
             m_device->waitForIdle();
         }
 
@@ -272,7 +266,14 @@ namespace dxvk {
           waitInfo.pSemaphores = semaphores.data();
           waitInfo.pValues = timelines.data();
 
-          status = vk->vkWaitSemaphores(vk->device(), &waitInfo, ~0ull);
+          // Treat a timeout here as DEVICE_LOST. Sometimes we just don't get
+          // DEVICE_LOST from the driver for some reason.
+          status = vk->vkWaitSemaphores(vk->device(), &waitInfo, 5'000'000'000ull);
+
+          if (status == VK_TIMEOUT) {
+            Logger::err("DxvkSubmissionQueue: Timeout occured, GPU likely hung.");
+            status = VK_ERROR_DEVICE_LOST;
+          }
 
           if (entry.latency.tracker) {
             if (status == VK_SUCCESS)

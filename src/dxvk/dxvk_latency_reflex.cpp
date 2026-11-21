@@ -281,6 +281,7 @@ namespace dxvk {
     uint64_t frameId = lookupFrameId(appFrameId);
 
     if (!frameId && (marker == VK_LATENCY_MARKER_SIMULATION_START_NV
+                  || marker == VK_LATENCY_MARKER_RENDERSUBMIT_START_NV
                   || marker == VK_LATENCY_MARKER_INPUT_SAMPLE_NV))
       frameId = allocateFrameId(appFrameId);
 
@@ -305,7 +306,8 @@ namespace dxvk {
 
     if (marker == VK_LATENCY_MARKER_INPUT_SAMPLE_NV
      || marker == VK_LATENCY_MARKER_SIMULATION_START_NV
-     || marker == VK_LATENCY_MARKER_SIMULATION_END_NV) {
+     || marker == VK_LATENCY_MARKER_SIMULATION_END_NV
+     || marker == VK_LATENCY_MARKER_TRIGGER_FLASH_NV) {
       lock.unlock();
 
       cpuTime = m_presenter->setLatencyMarkerNv(frameId, marker);
@@ -346,6 +348,10 @@ namespace dxvk {
 
       case VK_LATENCY_MARKER_PRESENT_END_NV:
         frame.cpuPresentEnd = cpuTime;
+        break;
+
+      case VK_LATENCY_MARKER_TRIGGER_FLASH_NV:
+        // Nothing to do here
         break;
 
       default:

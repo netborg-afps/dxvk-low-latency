@@ -2031,6 +2031,9 @@ namespace dxvk {
 
     // Fix up shader I/O based on shader linkage
     { dxbc_spv::ir::LowerIoPass ioPass(irBuilder);
+      if (m_metadata.stage == VK_SHADER_STAGE_FRAGMENT_BIT)
+        ioPass.resolveUnwrittenPsOutputs();
+
       if (linkage) {
         if (m_metadata.stage == VK_SHADER_STAGE_FRAGMENT_BIT && linkage->fsFlatShading && m_metadata.flatShadingInputs)
           ioPass.enableFlatInterpolation(m_metadata.flatShadingInputs);
@@ -2257,6 +2260,7 @@ namespace dxvk {
     options.derivativeOptions.hoistDescriptorLoads = true;
 
     options.cseOptions.relocateDescriptorLoad = true;
+    options.cseOptions.resolveOverlappingLoads = true;
 
     if (m_info.options.spirv.test(DxvkShaderSpirvFlag::SupportsResourceIndexing))
       options.descriptorIndexing.optimizeDescriptorIndexing = true;

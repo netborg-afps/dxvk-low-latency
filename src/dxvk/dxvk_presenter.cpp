@@ -177,8 +177,7 @@ namespace dxvk {
     PresenterSync& currSync = m_semaphores.at(m_frameIndex);
     Rc<FramePacer> pacer = m_framePacer;
 
-    uint64_t frameDeadline = 0u;
-    if (Rc<FramePacer> p = m_framePacer; p && p->getMode() == FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING)
+    if (pacer && pacer->getMode() == FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING)
       m_presentMode = VK_PRESENT_MODE_FIFO_KHR;
 
     VkPresentIdKHR presentId = { VK_STRUCTURE_TYPE_PRESENT_ID_KHR };
@@ -211,6 +210,8 @@ namespace dxvk {
 
     bool waitForPresent = m_hasPresentWait && isFifoMode;
 
+    uint64_t frameTargetTime = 0u;
+
     VkPresentTimingInfoEXT timingInfo = { VK_STRUCTURE_TYPE_PRESENT_TIMING_INFO_EXT };
     timingInfo.presentStageQueries = m_timingMode.presentStage;
     timingInfo.timeDomainId = m_timingMode.timeDomainId;
@@ -218,18 +219,21 @@ namespace dxvk {
     if (m_timingMode.presentStage && isFifoMode) {
       std::lock_guard lock(m_timingMutex);
 
+      if (m_timingMode.referenceFrameId) {
+        frameTargetTime = m_timingMode.referenceTime +
+          (frameId - m_timingMode.referenceFrameId) * m_timingMode.frameIntervalNs;
+      }
+
       if (m_timingMode.relativeTiming) {
         timingInfo.flags |= VK_PRESENT_TIMING_INFO_PRESENT_AT_RELATIVE_TIME_BIT_EXT;
         timingInfo.targetTime = m_timingMode.frameIntervalNs;
         timingInfo.targetTimeDomainPresentStage = m_timingMode.presentStage;
       } else if (m_timingMode.absoluteTiming && m_timingMode.referenceFrameId) {
-        timingInfo.targetTime = m_timingMode.referenceTime + (frameId - m_timingMode.referenceFrameId) * m_timingMode.frameIntervalNs;
+        timingInfo.targetTime = frameTargetTime;
         timingInfo.targetTimeDomainPresentStage = m_timingMode.presentStage;
 
         if (m_timingDisplayInfo && !m_timingDisplayInfo->isVariableRefresh)
           timingInfo.flags |= VK_PRESENT_TIMING_INFO_PRESENT_AT_NEAREST_REFRESH_CYCLE_BIT_EXT;
-
-        frameDeadline = timingInfo.targetTime + m_timingMode.frameIntervalNs;
 
         // Skip present_wait in fixed refresh mode if the frame is timed
         if (!m_timingDisplayInfo || !m_timingDisplayInfo->isVariableRefresh)
@@ -312,8 +316,9 @@ namespace dxvk {
     frame.tracker = tracker;
     frame.mode = m_presentMode;
     frame.result = status;
-    frame.targetTime = frameDeadline ? timingInfo.targetTime : 0u;
-    frame.deadline = frameDeadline;
+    frame.targetTime = frameTargetTime;
+    frame.targetDeadline = frameTargetTime ? frameTargetTime + m_timingMode.frameIntervalNs : 0u;
+    frame.timingDomainId = timingInfo.timeDomainId;
     frame.isTimed = bool(timingInfo.targetTime);
     frame.doWait = waitForPresent;
 
@@ -1458,7 +1463,7 @@ namespace dxvk {
     m_timingMode.absoluteTiming = false;
 
     // Can't meaningfully do timing if we don't know about display timing
-    if (!m_timingDomains || !m_timingDisplayInfo)
+    if (!m_timingDomains || !m_timingDisplayInfo || m_calibrationFailed)
       return;
 
     // Compute target frame interval from frame rate limit
@@ -1479,11 +1484,13 @@ namespace dxvk {
       return;
     }
 
-    // Probe relative timing first since that is most likely to give us
-    // consistent pacing, without any setup work required from our side.
-    if (m_timingMode.supportsRelative) {
+    if (m_timingMode.supportsAbsolute) {
+      // Always prefer absolute timimg if available. We need absolute timestamps
+      // anyway in order to synchronize and return feedback to the application.
+      m_timingMode.absoluteTiming = true;
+    } else if (m_timingMode.supportsRelative) {
       if (m_timingDisplayInfo->isVariableRefresh) {
-        // Always enable relative timing for VRR
+        // In VRR mode, presentation should be driving display refresh
         m_timingMode.relativeTiming = true;
       } else if (m_timingDisplayInfo->refreshIntervalNs) {
         // Otherwise, check if the frame duration is reasonably close
@@ -1497,10 +1504,6 @@ namespace dxvk {
           m_timingMode.frameIntervalNs = (m_timingMode.frameIntervalNs + maxDeltaNs) - realDeltaNs;
       }
     }
-
-    // Fall back to absolute timing if we cannot use relative timimg.
-    if (m_timingMode.supportsAbsolute)
-      m_timingMode.absoluteTiming = !m_timingMode.relativeTiming;
 
     // Reset reference time and frame ID for absolute timing
     // so that we don't end up submitting bogus timestamps.
@@ -1518,9 +1521,9 @@ namespace dxvk {
   }
 
 
-  void Presenter::recalibrateTimeDomains() {
+  bool Presenter::recalibrateTimeDomains() {
     if (!m_timingDomains)
-      return;
+      return false;
 
     // Calibrate all known time domains at once
     auto& domains = m_timingDomains->domains;
@@ -1546,23 +1549,12 @@ namespace dxvk {
       }
     }
 
-    // Retry calibration until we get reasonable precision (150us)
-    constexpr uint32_t MaxAttempts = 5u;
-    constexpr uint64_t MaxDeviation = 1500000u;
+    VkResult status = getCalibratedTimestamps(domains.size(),
+      calibrationInfo.data(), timestamps.data());
 
-    uint64_t maxDeviation = 0u;
-
-    for (uint32_t i = 0u; i < MaxAttempts; i++) {
-      VkResult status = m_vkd->vkGetCalibratedTimestampsKHR(m_vkd->device(),
-        domains.size(), calibrationInfo.data(), timestamps.data(), &maxDeviation);
-
-      if (status && !i) {
-        Logger::warn(str::format("Presenter: Failed to calibrate timestamps: ", status));
-        return;
-      }
-
-      if (status || maxDeviation <= MaxDeviation)
-        break;
+    if (status != VK_SUCCESS) {
+      m_timingDomains->lastCalibration = dxvk::high_resolution_clock::time_point();
+      return false;
     }
 
     for (size_t i = 0u; i < domains.size(); i++)
@@ -1571,6 +1563,7 @@ namespace dxvk {
     // Remember when we last calibrated everything so that we can periodically
     // re-query. Clock drift is a real issue on certain hardware configurations.
     m_timingDomains->lastCalibration = dxvk::high_resolution_clock::now();
+    return true;
   }
 
 
@@ -1628,7 +1621,8 @@ namespace dxvk {
       updateMode = true;
       updateTimingDomains();
 
-      recalibrateTimeDomains();
+      if (!recalibrateTimeDomains())
+        return false;
     }
 
     if (updateMode)
@@ -1650,9 +1644,23 @@ namespace dxvk {
       if (pacer)
           pacer->notifyGpuPresentEnd(report.presentId, time.time, time.stage, report.timeDomain, report.timeDomainId);
 
+      // Find queued frame entry so we can properly correlate the report
+      // with expected timings
+      const PresenterFrame* frameEntry = nullptr;
+
+      for (const auto& frame : m_frameQueue) {
+        if (frame.frameId == report.presentId)
+          frameEntry = &frame;
+      }
+
+      if (!frameEntry || frameEntry->timingDomainId != m_timingMode.timeDomainId) {
+        Logger::warn(str::format("Presenter: Skipping report for frame ", report.presentId));
+        continue;
+      }
+
       uint64_t reportTimeLocal = translateTimestamp(
         report.timeDomain, report.timeDomainId, time.time,
-        VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT, m_timingMode.timeDomainId);
+        VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT, frameEntry->timingDomainId);
 
       uint64_t reportTimeQpc = 0u;
 
@@ -1667,12 +1675,7 @@ namespace dxvk {
         m_timingMode.lastFrameTimeLocal = reportTimeLocal;
         m_timingMode.lastFrameTimeQpc = reportTimeQpc;
 
-        // Implicitly handles the case where deadline is 0, i.e. no
-        // absolute timing was used to control the actual presentation.
-        for (const auto& frame : m_frameQueue) {
-          if (frame.frameId == report.presentId)
-            hasMissedDeadline = reportTimeLocal > frame.deadline;
-        }
+        hasMissedDeadline = reportTimeLocal > frameEntry->targetDeadline;
       }
     }
 
@@ -1683,8 +1686,8 @@ namespace dxvk {
 
     // We can't give meaningful feedback w/o QPC timing currently.
     // TODO figure out correct time domain for dxvk-native if we're
-    // reslly interested, otherwise just ignore the problem.
-    if (hasQpcDomain()) {
+    // really interested, otherwise just ignore the problem.
+    if (m_timingMode.lastFrameTimeQpc) {
       feedback.frameId = m_timingMode.lastFrameId;
       feedback.presentTime = m_timingMode.lastFrameTimeQpc;
     }
@@ -1704,25 +1707,27 @@ namespace dxvk {
   }
 
 
-  void Presenter::waitUntilFrameTargetTime(
+  bool Presenter::waitUntilFrameTargetTime(
     const PresenterFrame&           frame) {
     if (!frame.targetTime)
-      return;
+      return false;
 
     uint64_t qpcTargetTime = 0u;
 
     { std::lock_guard lock(m_timingMutex);
       if (hasQpcDomain()) {
         qpcTargetTime = translateTimestamp(
-          VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT, m_timingMode.timeDomainId, frame.targetTime,
+          VK_TIME_DOMAIN_PRESENT_STAGE_LOCAL_EXT, frame.timingDomainId, frame.targetTime,
           VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR, 0u);
       }
     }
 
-    if (qpcTargetTime) {
-      auto dxvkTargetTime = dxvk::high_resolution_clock::get_time_from_counter(qpcTargetTime);
-      Sleep::sleepUntil(dxvk::high_resolution_clock::now(), dxvkTargetTime);
-    }
+    if (!qpcTargetTime)
+      return false;
+
+    auto dxvkTargetTime = dxvk::high_resolution_clock::get_time_from_counter(qpcTargetTime);
+    Sleep::sleepUntil(dxvk::high_resolution_clock::now(), dxvkTargetTime);
+    return true;
   }
 
 
@@ -1768,8 +1773,8 @@ namespace dxvk {
     uint64_t calibrationAgeNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
       dxvk::high_resolution_clock::now() - m_timingDomains->lastCalibration).count();
 
-    if (calibrationAgeNs > 1000000000ull)
-      recalibrateTimeDomains();
+    if (calibrationAgeNs > 1000000000ull && !recalibrateTimeDomains())
+      return 0u;
 
     // Check whether the source and destination time domains are known
     // and compute the delta in terms of nanoseconds or QPC ticks.
@@ -1820,10 +1825,8 @@ namespace dxvk {
       // Try to get reference timestamps for the two domains
       std::array<uint64_t, 2u> timestamps = { };
 
-      uint64_t maxDeviation = 0u;
-
-      VkResult status = m_vkd->vkGetCalibratedTimestampsKHR(m_vkd->device(),
-        calibrationInfo.size(), calibrationInfo.data(), timestamps.data(), &maxDeviation);
+      VkResult status = getCalibratedTimestamps(calibrationInfo.size(),
+        calibrationInfo.data(), timestamps.data());
 
       if (status) {
         Logger::err(str::format("Presenter: Failed to map timestamp from ",
@@ -1893,6 +1896,88 @@ namespace dxvk {
   }
 
 
+  VkResult Presenter::getCalibratedTimestamps(
+          uint32_t                  timestampCount,
+    const VkCalibratedTimestampInfoKHR* pTimestampInfos,
+          uint64_t*                 pTimestamps) {
+    // See below, don't spam the Vulkan call if we can't properly
+    // calibrate anyway.
+    if (m_calibrationFailed)
+      return VK_ERROR_UNKNOWN;
+
+    // Retry calibration until we get reasonable precision (150us)
+    constexpr uint32_t MaxAttempts = 5u;
+    constexpr uint64_t MaxDeviation = 1500000u;
+
+    uint64_t maxDeviation = 0u;
+
+    uint64_t t0 = 0u;
+    uint64_t t1 = 0u;
+
+    for (uint32_t i = 0u; i < MaxAttempts; i++) {
+      t0 = dxvk::high_resolution_clock::get_counter();
+      VkResult status = m_vkd->vkGetCalibratedTimestampsKHR(m_vkd->device(),
+        timestampCount, pTimestampInfos, pTimestamps, &maxDeviation);
+      t1 = dxvk::high_resolution_clock::get_counter();
+
+      if (status && !i)
+        return status;
+
+      if (status || maxDeviation <= MaxDeviation)
+        break;
+    }
+
+    if (env::isWineVulkan()) {
+      // Upstream wine currently uses different clock sources for win32 QPC
+      // functions and the corresponding Vulkan function, so verify that the
+      // timestamps make sense...
+      uint64_t cpuTime = t0 + (t1 - t0) / 2u;
+
+      for (uint32_t i = 0u; i < timestampCount; i++) {
+        if (pTimestampInfos[i].timeDomain == VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR) {
+          auto tMin = dxvk::high_resolution_clock::get_time_from_counter(std::min(cpuTime, pTimestamps[i]));
+          auto tMax = dxvk::high_resolution_clock::get_time_from_counter(std::max(cpuTime, pTimestamps[i]));
+
+          uint64_t deltaNs = std::chrono::duration_cast<std::chrono::nanoseconds>(tMax - tMin).count();
+
+          if (deltaNs > 2u * std::max(maxDeviation, MaxDeviation)) {
+            // On Mesa drivers and Nvidia, we can reasonably assume that we get
+            // a "current" timestamp from the driver, so just using our own time
+            // should be fine. On other drivers, be conservative and error out.
+            auto driver = m_device->properties().vk12.driverID;
+
+            bool isTrustedDriver = driver == VK_DRIVER_ID_INTEL_OPEN_SOURCE_MESA
+                                || driver == VK_DRIVER_ID_MESA_RADV
+                                || driver == VK_DRIVER_ID_MESA_LLVMPIPE
+                                || driver == VK_DRIVER_ID_MESA_TURNIP
+                                || driver == VK_DRIVER_ID_MESA_NVK
+                                || driver == VK_DRIVER_ID_NVIDIA_PROPRIETARY;
+
+            if (!std::exchange(m_calibrationWarned, true)) {
+              uint64_t ms = deltaNs / 100000u;
+
+              Logger::warn(str::format("Presenter: Got QPC delta of ",
+                (ms / 10u), ".", (ms % 10u), "ms, can't trust calibration?"));
+
+              if (!isTrustedDriver)
+                Logger::err("Presenter: Timestamp calibration inaccurate, skipping.");
+            }
+
+            if (!isTrustedDriver) {
+              m_calibrationFailed = true;
+              return VK_ERROR_UNKNOWN;
+            }
+
+            pTimestamps[i] = cpuTime;
+          }
+        }
+      }
+    }
+
+    return VK_SUCCESS;
+  }
+
+
   void Presenter::destroySwapchain() {
     // Without present fence support, waiting for the queue or device to go idle
     // is the only way to properly synchronize swapchain teardown. Care must be
@@ -1946,6 +2031,9 @@ namespace dxvk {
     m_timingDomains = std::nullopt;
     m_timingDisplayInfo = std::nullopt;
     m_timingMode = PresenterTimingInfo();
+
+    m_calibrationFailed = false;
+    m_calibrationWarned = false;
   }
 
 
@@ -2044,7 +2132,6 @@ namespace dxvk {
       // and don't do any delaying in this thread
       FramePacer* pacer = dynamic_cast<FramePacer*>(frame.tracker.ptr());
       bool devicePresentTiming = m_device->features().extPresentTiming.presentTiming;
-      bool gotPresentTiming = updatePresentTiming(frame.frameId, pacer);
 
       // Signal latency tracker right away to get more accurate
       // measurements if the frame rate limiter is enabled.
@@ -2054,9 +2141,12 @@ namespace dxvk {
       // Apply FPS limiter here to align it as closely with scanout as we can,
       // and delay signaling the frame latency event to emulate behaviour of a
       // low refresh rate display as closely as we can.
-      if ((!pacer || !pacer->getMode()) && gotPresentTiming && frame.isTimed)
-        waitUntilFrameTargetTime(frame);
-      else
+      bool waited = updatePresentTiming(frame.frameId, pacer)
+        && (!pacer || !pacer->getMode())
+        && frame.isTimed && frame.targetTime
+        && waitUntilFrameTargetTime(frame);
+
+      if (!waited)
         m_fpsLimiter.delay(frame.tracker);
 
       frame.tracker = nullptr;
