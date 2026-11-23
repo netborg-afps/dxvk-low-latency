@@ -100,7 +100,7 @@ namespace dxvk {
 
       if (m_mode == LOW_LATENCY_VRR || m_mode == LOW_LATENCY_VRR_PRESENT_TIMING) {
         int32_t vrrDelay = getVrrDelay( frameId, props, now );
-        int32_t vrrGpuTime = vrrDelay - std::max( m->gpuStart, props.cpuUntilGpuStart );
+        int32_t vrrGpuTime = vrrDelay - std::max( LatencyMarkers::diff(m->gpuStart, m->start), props.cpuUntilGpuStart );
         targetGpuTime = std::max( targetGpuTime, vrrGpuTime );
       }
 
@@ -203,9 +203,7 @@ namespace dxvk {
       if (m_mode == LOW_LATENCY_VRR) {
         // implicitly derive v-blank timings
         const LatencyMarkers* mPrev = m_latencyMarkers->getConstMarkers(frameId-1);
-        int32_t frametime = duration_cast<microseconds>(
-            (m->start + microseconds(m->gpuFinished))
-          - (mPrev->start + microseconds(mPrev->gpuFinished) )).count();
+        int32_t frametime = LatencyMarkers::diff( m->gpuFinished, mPrev->gpuFinished );
 
         int32_t curVSyncBuffer = m_vrrVSyncBuffer.load();
         int32_t diff = (m_vrrRefreshInterval + curVSyncBuffer) - frametime;
@@ -222,16 +220,15 @@ namespace dxvk {
     void endFrame( uint64_t frameId ) override {
 
       if (m_mode == LOW_LATENCY_VRR_PRESENT_TIMING && frameId > m_firstFrameId+1) {
-        const LatencyMarkers* m1 = m_latencyMarkers->getConstMarkers(frameId-1);
-        const LatencyMarkers* m2 = m_latencyMarkers->getConstMarkers(frameId);
+        const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(frameId);
+        const LatencyMarkers* m_prev = m_latencyMarkers->getConstMarkers(frameId-1);
 
-        int32_t gpuFinishedInterval = std::chrono::duration_cast<microseconds>(
-          (m2->start + microseconds(m2->gpuFinished)) - (m1->start + microseconds(m1->gpuFinished))).count();
+        int32_t gpuFinishedInterval = LatencyMarkers::diff( m->gpuFinished, m_prev->gpuFinished );
 
         // only push values where we probably weren't running into v-sync buffering.
         // otherwise we can get a presentation stats median drift due to feedback loop.
         if (gpuFinishedInterval >= 0.99 * m_vrrRefreshInterval)
-          m_presentationStats.push( m2->end, m2->presentFinished - m2->gpuFinished );
+          m_presentationStats.push( m->end, m->getPresentationLatency() );
       }
 
     }
@@ -301,7 +298,7 @@ namespace dxvk {
 
       int32_t lastFrameStart = std::chrono::duration_cast<microseconds>( m->start - now ).count();
       int32_t gpuReadyPrediction = lastFrameStart
-        + std::max( props.cpuUntilGpuStart, m->gpuStart )
+        + std::max( props.cpuUntilGpuStart, LatencyMarkers::diff(m->gpuStart, m->start))
         + props.optimizedGpuTime;
 
       int32_t gpuDelay = gpuReadyPrediction - props.cpuUntilGpuStart;
@@ -350,7 +347,7 @@ namespace dxvk {
       uint64_t renderFinishedId = m_latencyMarkers->getTimeline()->gpuFinished.load();
       const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(renderFinishedId);
       int32_t lastVBlank = std::chrono::duration_cast<microseconds> (
-        m->start + microseconds(m->gpuFinished) - now + microseconds(m_vrrVSyncBuffer.load())).count();
+        m->gpuFinished - now + microseconds(m_vrrVSyncBuffer.load())).count();
 
       int32_t targetVBlank = lastVBlank + (frameId-renderFinishedId) * m_vrrRefreshInterval;
 
@@ -386,7 +383,7 @@ namespace dxvk {
       int32_t targetVBlank = lastVBlank + (frameId-presentFinishedId) * m_vrrRefreshInterval;
 
       // set last v-blank if we have more information about the last frame
-      if (presentFinishedId == frameId-2 && lastFrameFinishPrediction != time_point{} ) {
+      if (presentFinishedId == frameId-2 && lastFrameFinishPrediction != time_point{}) {
         int32_t vBlank = std::chrono::duration_cast<microseconds> (
           lastFrameFinishPrediction - now).count() + presentDelay;
         lastVBlank += m_vrrRefreshInterval;

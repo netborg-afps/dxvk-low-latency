@@ -154,7 +154,7 @@ namespace dxvk {
         LatencyMarkers* next = m_latencyMarkers.getMarkers(frameId+1);
         assert( !m->gpuReady.empty() );
         auto t = m->gpuReady.back();
-        m->gpuFinished = std::chrono::duration_cast<microseconds>(t - m->start).count();
+        m->gpuFinished = t;
         next->gpuReady.clear();
         next->gpuReady.push_back(t);
         m_mode->notifyGpuReady(frameId+1, t);
@@ -162,7 +162,7 @@ namespace dxvk {
 
         gpuExecutionCheckGpuStart(frameId+1, next, t);
 
-        m_latencyAverage.push(m->gpuFinished);
+        m_latencyAverage.push( LatencyMarkers::diff(m->gpuFinished, m->start) );
         m_latencyMarkers.m_timeline.gpuFinished.store(frameId);
         m_mode->finishRender(frameId);
         m_frameSync.signalRenderFinished(frameId);
@@ -236,7 +236,7 @@ namespace dxvk {
   private:
 
     void signalGpuStart( uint64_t frameId, LatencyMarkers* m, const time_point& t ) {
-      m->gpuStart = std::chrono::duration_cast<microseconds>(t - m->start).count();
+      m->gpuStart = t;
       m_latencyMarkers.m_timeline.gpuStart.store(frameId);
       m_frameSync.signalGpuStart(frameId);
     }
@@ -264,13 +264,14 @@ namespace dxvk {
       if (m_enabledJitterTracking && frameId > m_mode->getFirstFrameId()+2) {
         JitterEntry e;
         e.t = m->start;
-        e.frametime  = std::abs( duration_cast<microseconds>( m->start - m_prev->start ).count()
-                               - duration_cast<microseconds>( m_prev->start - m_prev2->start ).count() );
-        e.frametime += std::abs( duration_cast<microseconds>( m->end - m_prev->end ).count()
-                               - duration_cast<microseconds>( m_prev->end - m_prev2->end ).count() );
+        e.frametime  = std::abs( LatencyMarkers::diff( m->start, m_prev->start )
+                               - LatencyMarkers::diff( m_prev->start, m_prev2->start ) );
+        e.frametime += std::abs( LatencyMarkers::diff( m->end, m_prev->end )
+                               - LatencyMarkers::diff( m_prev->end, m_prev2->end ) );
         e.frametime >>= 1;
 
-        e.latency = std::abs( m->gpuFinished - m_prev->gpuFinished );
+        e.latency = std::abs( LatencyMarkers::diff( m->gpuFinished, m->start )
+                            - LatencyMarkers::diff( m_prev->gpuFinished, m_prev->start ) );
         e.appThreadLatency = std::abs( m->appThreadFinished - m_prev->appThreadFinished );
 
         m_jitterStats.push( std::move(e) );
@@ -280,7 +281,7 @@ namespace dxvk {
       if (m_enabledVSyncBufferTracking) {
         if (!m_presentationStats)
           m_presentationStats.store( new LatencyStats(3000) );
-        m_presentationStats.load()->push( m->end, m->presentFinished - m->gpuFinished );
+        m_presentationStats.load()->push( m->end, m->getPresentationLatency() );
       }
 
       if (m_enabledGpuBufferTracking) {
