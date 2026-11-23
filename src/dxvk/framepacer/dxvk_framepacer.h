@@ -37,8 +37,7 @@ namespace dxvk {
             uint64_t                  frameId,
             double                    maxFrameRate) override {
       LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId-1);
-      m->appThreadFinished = std::chrono::duration_cast<microseconds> (
-        high_resolution_clock::now() - m->start).count();
+      m->appFinished = high_resolution_clock::now();
 
       // wait for finished rendering of a previous frame, typically the one before last
       m_frameSync.waitRenderFinished(frameId);
@@ -259,7 +258,8 @@ namespace dxvk {
 
         e.latency = std::abs( LatencyMarkers::diff( m->gpuFinished, m->start )
                             - LatencyMarkers::diff( m_prev->gpuFinished, m_prev->start ) );
-        e.appThreadLatency = std::abs( m->appThreadFinished - m_prev->appThreadFinished );
+        e.appLatency = std::abs( LatencyMarkers::diff( m->appFinished, m->start )
+                               - LatencyMarkers::diff( m_prev->appFinished, m_prev->start ) );
 
         m_jitterStats.push( std::move(e) );
       }

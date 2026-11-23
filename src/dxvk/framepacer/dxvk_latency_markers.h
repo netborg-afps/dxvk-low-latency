@@ -24,9 +24,8 @@ namespace dxvk {
     time_point gpuStart;
     time_point gpuFinished;
 
-    int32_t appThreadFinished;
+    time_point appFinished;
     time_point csFinished;
-    int32_t presentFinished;
 
     std::vector<time_point> gpuReady;
     std::vector<time_point> gpuSubmit;
@@ -88,8 +87,6 @@ namespace dxvk {
       }
 
       LatencyMarkers* markers = getMarkers(frameId);
-      markers->presentFinished = std::chrono::duration_cast<std::chrono::microseconds>(
-        t - markers->start).count();
       markers->end = t;
 
       m_timeline.frameFinished.store(frameId);

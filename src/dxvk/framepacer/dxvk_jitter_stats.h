@@ -18,18 +18,18 @@ namespace dxvk {
 
     int32_t frametime;
     int32_t latency;
-    int32_t appThreadLatency;
+    int32_t appLatency;
 
   };
 
 
   struct JitterTotal {
 
-    int64_t count              = { 0 };
+    int64_t count         = { 0 };
 
-    int64_t frametime          = { 0 };
-    int64_t latency            = { 0 };
-    int64_t appThreadLatency   = { 0 };
+    int64_t frametime     = { 0 };
+    int64_t latency       = { 0 };
+    int64_t appLatency    = { 0 };
 
   };
 
@@ -48,7 +48,7 @@ namespace dxvk {
       newTotal.count     = oldTotal.count + 1;
       newTotal.frametime = oldTotal.frametime + entry.frametime;
       newTotal.latency   = oldTotal.latency + entry.latency;
-      newTotal.appThreadLatency = oldTotal.appThreadLatency + entry.appThreadLatency;
+      newTotal.appLatency = oldTotal.appLatency + entry.appLatency;
 
       // remove old items from the queue
       while (!m_queue.empty() && m_queue.front().t
@@ -58,7 +58,7 @@ namespace dxvk {
         --newTotal.count;
         newTotal.frametime -= e.frametime;
         newTotal.latency   -= e.latency;
-        newTotal.appThreadLatency -= e.appThreadLatency;
+        newTotal.appLatency -= e.appLatency;
 
         m_queue.pop_front();
       }
