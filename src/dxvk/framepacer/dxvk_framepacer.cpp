@@ -15,7 +15,7 @@ namespace dxvk {
 
 
   FramePacer::FramePacer( DxvkDevice* device, const DxvkOptions& options, uint64_t firstFrameId )
-  : m_latencyMarkersStorage(firstFrameId), m_device(device),
+  : m_device(device), m_latencyMarkers(firstFrameId),
     m_calibratedSwapchainTimestamps(device), m_calibratedDeviceTimestamps(device) {
     // We'll default to LOW_LATENCY, which generally provides the best "input lag"
     // along with time consistency and often appears the smoothest too.
@@ -59,7 +59,7 @@ namespace dxvk {
         Logger::info( "Frame pace: max-frame-latency" );
         m_frameSync.m_waitIsActive = false;
         m_frameSync.m_signalIsActive = false;
-        m_mode = std::make_unique<FramePacerMode>(FramePacerMode::MAX_FRAME_LATENCY, "max-frame-latency", &m_latencyMarkersStorage, &m_frameSync, firstFrameId);
+        m_mode = std::make_unique<FramePacerMode>(FramePacerMode::MAX_FRAME_LATENCY, "max-frame-latency", &m_latencyMarkers, &m_frameSync, firstFrameId);
         break;
 
       case FramePacerMode::LOW_LATENCY:
@@ -67,7 +67,7 @@ namespace dxvk {
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
         m_calibratedDeviceTimestamps.enable();
-        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkersStorage, &m_frameSync, options, firstFrameId);
+        m_mode = std::make_unique<LowLatencyMode>(mode, &m_latencyMarkers, &m_frameSync, options, firstFrameId);
         break;
 
       case FramePacerMode::LOW_LATENCY_VRR:
@@ -75,7 +75,7 @@ namespace dxvk {
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
         m_calibratedDeviceTimestamps.enable();
-        m_mode = std::make_unique<LowLatencyMode>(FramePacerMode::LOW_LATENCY_VRR, &m_latencyMarkersStorage, &m_frameSync, options, firstFrameId, refreshRate);
+        m_mode = std::make_unique<LowLatencyMode>(FramePacerMode::LOW_LATENCY_VRR, &m_latencyMarkers, &m_frameSync, options, firstFrameId, refreshRate);
         break;
 
       case FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING:
@@ -83,7 +83,7 @@ namespace dxvk {
         GpuFlushTracker::m_minPendingSubmissions = 1;
         GpuFlushTracker::m_minChunkCount = 1;
         m_calibratedDeviceTimestamps.enable();
-        m_mode = std::make_unique<LowLatencyMode>(FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING, &m_latencyMarkersStorage, &m_frameSync, options, firstFrameId, refreshRate);
+        m_mode = std::make_unique<LowLatencyMode>(FramePacerMode::LOW_LATENCY_VRR_PRESENT_TIMING, &m_latencyMarkers, &m_frameSync, options, firstFrameId, refreshRate);
         break;
 
       case FramePacerMode::MIN_LATENCY:
@@ -92,7 +92,7 @@ namespace dxvk {
         GpuFlushTracker::m_minChunkCount = 1;
         m_frameSync.m_waitLatency = 1;
         m_calibratedDeviceTimestamps.enable();
-        m_mode = std::make_unique<MinLatencyMode>(mode, &m_latencyMarkersStorage, &m_frameSync, firstFrameId);
+        m_mode = std::make_unique<MinLatencyMode>(mode, &m_latencyMarkers, &m_frameSync, firstFrameId);
         break;
     }
 
@@ -101,13 +101,13 @@ namespace dxvk {
     }
 
     // be consistent that every frame has a gpuReady event from finishing the previous frame
-    LatencyMarkers* m = m_latencyMarkersStorage.getMarkers( firstFrameId );
+    LatencyMarkers* m = m_latencyMarkers.getMarkers( firstFrameId );
     auto now = high_resolution_clock::now();
     m->gpuReady.push_back( now );
     m_mode->notifyGpuReady( firstFrameId, now );
     m_gpuStarts[ firstFrameId % m_gpuStarts.size() ] = gpuReadyBit;
 
-    LatencyMarkersTimeline& timeline = m_latencyMarkersStorage.m_timeline;
+    LatencyMarkersTimeline& timeline = m_latencyMarkers.m_timeline;
     timeline.cpuFinished.store   ( firstFrameId-1 );
     timeline.gpuStart.store      ( firstFrameId-1 );
     timeline.gpuFinished.store   ( firstFrameId-1 );

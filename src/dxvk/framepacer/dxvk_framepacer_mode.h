@@ -30,7 +30,7 @@ namespace dxvk {
     : m_mode( mode ),
       m_name( name ),
       m_firstFrameId( firstFrameId ),
-      m_latencyMarkersStorage( markerStorage ),
+      m_latencyMarkers( markerStorage ),
       m_frameSync( frameSync ) {
       setFpsLimitFrametimeFromEnv();
     }
@@ -76,7 +76,7 @@ namespace dxvk {
 
     const char*             m_name;
     const uint64_t          m_firstFrameId;
-    LatencyMarkersStorage*  m_latencyMarkersStorage;
+    LatencyMarkersStorage*  m_latencyMarkers;
     FrameSync*              m_frameSync;
     std::atomic<uint32_t>   m_presentMode;
     std::atomic<int32_t>    m_fpsLimitFrametime = { 0 };
