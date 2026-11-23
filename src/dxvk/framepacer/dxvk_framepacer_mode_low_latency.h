@@ -8,6 +8,7 @@
 #include "../../util/log/log.h"
 #include "../../util/util_string.h"
 
+
 namespace dxvk {
 
   /*
@@ -82,8 +83,8 @@ namespace dxvk {
       m_frameSync->m_fenceGpuStart.wait( frameId-1 );
 
       time_point now = high_resolution_clock::now();
-      const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(frameId-1);
-      uint64_t finishedId = m_latencyMarkersStorage->getTimeline()->gpuFinished.load();
+      const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(frameId-1);
+      uint64_t finishedId = m_latencyMarkers->getTimeline()->gpuFinished.load();
       if (finishedId <= m_firstFrameId+1)
         return;
 
@@ -151,7 +152,7 @@ namespace dxvk {
 
       using std::chrono::duration_cast;
       m_gpuProgress.finishRender( frameId );
-      const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(frameId);
+      const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(frameId);
 
       int32_t numLoop = (int32_t)(m->gpuReady.size())-1;
       if (numLoop <= 1) {
@@ -201,7 +202,7 @@ namespace dxvk {
 
       if (m_mode == LOW_LATENCY_VRR) {
         // implicitly derive v-blank timings
-        const LatencyMarkers* mPrev = m_latencyMarkersStorage->getConstMarkers(frameId-1);
+        const LatencyMarkers* mPrev = m_latencyMarkers->getConstMarkers(frameId-1);
         int32_t frametime = duration_cast<microseconds>(
             (m->start + microseconds(m->gpuFinished))
           - (mPrev->start + microseconds(mPrev->gpuFinished) )).count();
@@ -221,8 +222,8 @@ namespace dxvk {
     void endFrame( uint64_t frameId ) override {
 
       if (m_mode == LOW_LATENCY_VRR_PRESENT_TIMING && frameId > m_firstFrameId+1) {
-        const LatencyMarkers* m1 = m_latencyMarkersStorage->getConstMarkers(frameId-1);
-        const LatencyMarkers* m2 = m_latencyMarkersStorage->getConstMarkers(frameId);
+        const LatencyMarkers* m1 = m_latencyMarkers->getConstMarkers(frameId-1);
+        const LatencyMarkers* m2 = m_latencyMarkers->getConstMarkers(frameId);
 
         int32_t gpuFinishedInterval = std::chrono::duration_cast<microseconds>(
           (m2->start + microseconds(m2->gpuFinished)) - (m1->start + microseconds(m1->gpuFinished))).count();
@@ -346,8 +347,8 @@ namespace dxvk {
       if (m_mode != LOW_LATENCY_VRR)
         return 0;
 
-      uint64_t renderFinishedId = m_latencyMarkersStorage->getTimeline()->gpuFinished.load();
-      const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(renderFinishedId);
+      uint64_t renderFinishedId = m_latencyMarkers->getTimeline()->gpuFinished.load();
+      const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(renderFinishedId);
       int32_t lastVBlank = std::chrono::duration_cast<microseconds> (
         m->start + microseconds(m->gpuFinished) - now + microseconds(m_vrrVSyncBuffer.load())).count();
 
@@ -378,8 +379,8 @@ namespace dxvk {
         return 0;
 
       int32_t presentDelay = m_presentationStats.getMedian( frameId );
-      uint64_t presentFinishedId = m_latencyMarkersStorage->getTimeline()->frameFinished.load();
-      const LatencyMarkers* m = m_latencyMarkersStorage->getConstMarkers(presentFinishedId);
+      uint64_t presentFinishedId = m_latencyMarkers->getTimeline()->frameFinished.load();
+      const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(presentFinishedId);
       int32_t lastVBlank = std::chrono::duration_cast<microseconds>( m->end - now ).count();
 
       int32_t targetVBlank = lastVBlank + (frameId-presentFinishedId) * m_vrrRefreshInterval;
@@ -427,7 +428,6 @@ namespace dxvk {
 
 
     int32_t getLowLatencyOffset( const DxvkOptions& options );
-    bool getLowLatencyAllowCpuFramesOverlap( const DxvkOptions& options );
 
     const int32_t m_lowLatencyOffset;
     const bool    m_allowCpuFramesOverlap;
