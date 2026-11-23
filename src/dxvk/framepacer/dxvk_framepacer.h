@@ -58,11 +58,14 @@ namespace dxvk {
       trackStats(frameId);
     }
 
-    void notifyGpuPresentEnd( uint64_t frameId, uint64_t swapchainTimestamp, VkPresentStageFlagsEXT stageFlags, VkTimeDomainKHR timeDomain, uint64_t timeDomainId ) {
-      m_calibratedSwapchainTimestamps.calibrate(stageFlags, timeDomain, timeDomainId);
-      time_point t = (swapchainTimestamp == 0)
-        ? high_resolution_clock::now()
-        : m_calibratedSwapchainTimestamps.getHostTimestamp(swapchainTimestamp);
+    void notifyGpuPresentEnd( uint64_t frameId, uint64_t swapchainTimestamp, VkPresentStageFlagsEXT stageFlags, VkTimeDomainKHR timeDomain, uint64_t timeDomainId, uint64_t reportTimeQpc ) {
+      time_point t = high_resolution_clock::get_time_from_counter(reportTimeQpc);
+      if (!reportTimeQpc) {
+        m_calibratedSwapchainTimestamps.calibrate(stageFlags, timeDomain, timeDomainId);
+        t = (swapchainTimestamp == 0)
+          ? high_resolution_clock::now()
+          : m_calibratedSwapchainTimestamps.getHostTimestamp(swapchainTimestamp);
+      }
       notifyGpuPresentEnd(frameId, t);
     }
 
