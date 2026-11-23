@@ -21,17 +21,28 @@ namespace dxvk {
     time_point start;
     time_point end;
 
+    time_point gpuStart;
+    time_point gpuFinished;
+
     int32_t appThreadFinished;
     int32_t csStart;
     int32_t csFinished;
     int32_t cpuFinished;
-    int32_t gpuStart;
-    int32_t gpuFinished;
     int32_t presentFinished;
 
     std::vector<time_point> gpuReady;
     std::vector<time_point> gpuSubmit;
     std::vector<time_point> gpuQueueSubmit;
+
+    int32_t getPresentationLatency() const {
+      // due to different clock sources, values sometimes can be negative
+      int32_t presentationLatency = diff(end, gpuFinished);
+      return std::max( (int32_t) 0, presentationLatency );
+    }
+
+    static int32_t diff( time_point t1, time_point t0 ) {
+      return std::chrono::duration_cast<std::chrono::microseconds> (t1 - t0).count();
+    }
 
   };
 

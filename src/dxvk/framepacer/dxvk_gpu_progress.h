@@ -116,7 +116,7 @@ namespace dxvk {
 
       auto now = high_resolution_clock::now();
       int32_t totalTime = duration_cast<microseconds>(now - m->start).count();
-      cpuUntilGpuStart = std::max( cpuUntilGpuStart, m->gpuStart );
+      cpuUntilGpuStart = std::max( cpuUntilGpuStart, LatencyMarkers::diff(m->gpuStart, m->start) );
       int32_t sleepUntil = cpuUntilGpuStart + targetGpuRuntime;
       int32_t sleepDelay = std::max( 0, sleepUntil - totalTime );
 
