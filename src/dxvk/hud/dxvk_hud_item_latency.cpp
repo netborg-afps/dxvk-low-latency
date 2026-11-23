@@ -69,16 +69,16 @@ namespace dxvk::hud {
         float count_inv = 1.0/jitter.count;
         jitter.frametime *= count_inv;
         jitter.latency   *= count_inv;
-        jitter.appThreadLatency *= count_inv;
+        jitter.appLatency *= count_inv;
 
         jitter.frametime = std::min( (int64_t) 9999, jitter.frametime );
         jitter.latency   = std::min( (int64_t) 9999, jitter.latency );
-        jitter.appThreadLatency = std::min( (int64_t) 9999, jitter.appThreadLatency );
+        jitter.appLatency = std::min( (int64_t) 9999, jitter.appLatency );
       }
 
       m_frametime = str::format( jitter.frametime );
       m_latency   = str::format( jitter.latency );
-      m_appThread = str::format( jitter.appThreadLatency );
+      m_appThread = str::format( jitter.appLatency );
     }
   }
 
