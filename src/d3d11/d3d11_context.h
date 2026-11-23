@@ -1200,7 +1200,7 @@ namespace dxvk {
     static DxvkBlendMode InitDefaultBlendState();
 
     template<bool AllowFlush = true, typename Cmd>
-    void EmitCs(Cmd&& command, bool disableFlush=false ) {
+    void EmitCs(Cmd&& command) {
       if (unlikely(m_csDataType != D3D11CmdType::None)) {
         m_csData = nullptr;
         m_csDataType = D3D11CmdType::None;
@@ -1211,8 +1211,7 @@ namespace dxvk {
         m_csChunk = AllocCsChunk();
 
         if constexpr (!IsDeferred && AllowFlush)
-          if (!disableFlush)
-            GetTypedContext()->ConsiderFlush(GpuFlushType::ImplicitWeakHint);
+          GetTypedContext()->ConsiderFlush(GpuFlushType::ImplicitWeakHint);
 
         m_csChunk->push(command);
       }

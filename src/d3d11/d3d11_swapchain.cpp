@@ -558,7 +558,7 @@ namespace dxvk {
           cFrameId = m_frameId
         ] (DxvkContext* ctx) {
           ctx->beginLatencyTracking(cLatency, cFrameId + 1u);
-        }, true);
+        });
       }
     }
 

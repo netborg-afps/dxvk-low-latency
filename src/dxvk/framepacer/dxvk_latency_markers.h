@@ -25,9 +25,7 @@ namespace dxvk {
     time_point gpuFinished;
 
     int32_t appThreadFinished;
-    int32_t csStart;
-    int32_t csFinished;
-    int32_t cpuFinished;
+    time_point csFinished;
     int32_t presentFinished;
 
     std::vector<time_point> gpuReady;
