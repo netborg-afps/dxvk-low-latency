@@ -67,19 +67,6 @@ namespace dxvk {
       notifyGpuPresentEnd(frameId, t);
     }
 
-    void notifyCsRenderBegin( uint64_t frameId ) override {
-      auto now = high_resolution_clock::now();
-      LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
-      m->csStart = std::chrono::duration_cast<microseconds>(now - m->start).count();
-    }
-
-    void notifyCsRenderEnd( uint64_t frameId ) override {
-      auto now = high_resolution_clock::now();
-      LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
-      m->csFinished = std::chrono::duration_cast<microseconds>(now - m->start).count();
-      m_frameSync.signalCsFinished( frameId );
-    }
-
     void notifySubmit( uint64_t frameId ) override {
       LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
       m->gpuSubmit.push_back(high_resolution_clock::now());
@@ -88,12 +75,12 @@ namespace dxvk {
     void notifyPresent( uint64_t frameId ) override {
       // dx to vk translation is finished
       if (frameId != 0) {
-        auto now = high_resolution_clock::now();
         LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
         LatencyMarkers* next = m_latencyMarkers.getMarkers(frameId+1);
-        m->cpuFinished = std::chrono::duration_cast<microseconds>(now - m->start).count();
+        m->csFinished = high_resolution_clock::now();
         next->gpuSubmit.clear();
 
+        m_frameSync.signalCsFinished(frameId);
         m_latencyMarkers.m_timeline.cpuFinished.store(frameId);
       }
     }

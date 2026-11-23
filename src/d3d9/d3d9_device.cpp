@@ -6126,7 +6126,7 @@ namespace dxvk {
     ] (DxvkContext* ctx) {
       if (cTracker && cTracker->needsAutoMarkers())
         ctx->beginLatencyTracking(cTracker, cFrameId);
-    }, true);
+    });
   }
 
 

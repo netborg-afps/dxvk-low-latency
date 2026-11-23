@@ -108,8 +108,7 @@ namespace dxvk {
         // we don't track gpu progress, because we start earlier than
         // when the first submission might be processed by the gpu.
         // this means, this path is mostly taken when being cpu limited.
-        int32_t gpuDelay = getGpuDelay( props, m, now );
-        int32_t delay = std::max( gpuDelay, getCpuDelay( props, m, now ) );
+        int32_t delay = getGpuDelay( props, m, now );
         delay = std::max( delay, getFpsLimiterDelay( m, now ) );
         delay = std::max( delay, getVrrDelay( frameId, props, now ) );
 
@@ -133,8 +132,7 @@ namespace dxvk {
 
       props = getSyncPrediction();
       now = high_resolution_clock::now();
-      int32_t cpuDelay = getCpuDelay( props, m, now );
-      int32_t delay = std::max( cpuDelay, getFpsLimiterDelay( m, now ) );
+      int32_t delay = getFpsLimiterDelay( m, now );
       delay = std::max( delay, getVrrDelay( frameId, props, now, lastFrameFinishPrediction ) );
       sleepFor( now, delay );
 
@@ -196,8 +194,6 @@ namespace dxvk {
       props.cpuUntilGpuSync = offset + duration_cast<microseconds>( m->gpuSubmit[numLoop-1] - m->start ).count();
       props.cpuUntilGpuStart = props.cpuUntilGpuSync - props.gpuSync;
       props.optimizedGpuTime = optimizedGpuTime;
-      props.csStart = m->csStart;
-      props.csFinished = m->csFinished;
       props.isOutlier = isOutlier(frameId);
 
       if (m_mode == LOW_LATENCY_VRR) {
@@ -242,8 +238,6 @@ namespace dxvk {
       int32_t gpuSync;            // gpuStart to this sync point, in microseconds
       int32_t cpuUntilGpuSync;
       int32_t cpuUntilGpuStart;
-      int32_t csStart;
-      int32_t csFinished;
       bool    isOutlier;
     };
 
@@ -303,21 +297,6 @@ namespace dxvk {
 
       int32_t gpuDelay = gpuReadyPrediction - props.cpuUntilGpuStart;
       return gpuDelay + m_lowLatencyOffset;
-
-    }
-
-
-    int32_t getCpuDelay( const SyncProps& props, const LatencyMarkers* m, time_point now ) const {
-
-      if (!m_allowCpuFramesOverlap)
-        return 0;
-
-      // prevents the cs thread from creating additional latency.
-      // in the future, we should handle this a bit more sophisticatedly, allowing more overlap.
-      int32_t cpuReadyPrediction = std::chrono::duration_cast<microseconds>(
-          m->start + microseconds(props.csFinished) - now).count();
-      int32_t cpuDelay = cpuReadyPrediction - props.csStart;
-      return cpuDelay + m_lowLatencyOffset;
 
     }
 

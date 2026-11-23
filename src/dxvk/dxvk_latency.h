@@ -105,7 +105,7 @@ namespace dxvk {
      * \param [in] frameId Current frame ID
      */
     virtual void notifyCsRenderBegin(
-            uint64_t                  frameId) = 0;
+            uint64_t                  frameId) { }
 
     /**
      * \brief Called when the CS thread completes a frame
@@ -115,7 +115,7 @@ namespace dxvk {
      * \param [in] frameId Current frame ID
      */
     virtual void notifyCsRenderEnd(
-            uint64_t                  frameId) = 0;
+            uint64_t                  frameId) { }
 
     /**
      * \brief Called when presentation ends on the CPU timeline
