@@ -1641,9 +1641,6 @@ namespace dxvk {
       if (!report.reportComplete || !time.time || time.stage != m_timingMode.presentStage)
         continue;
 
-      if (pacer)
-          pacer->notifyGpuPresentEnd(report.presentId, time.time, time.stage, report.timeDomain, report.timeDomainId);
-
       // Find queued frame entry so we can properly correlate the report
       // with expected timings
       const PresenterFrame* frameEntry = nullptr;
@@ -1655,6 +1652,8 @@ namespace dxvk {
 
       if (!frameEntry || frameEntry->timingDomainId != m_timingMode.timeDomainId) {
         Logger::warn(str::format("Presenter: Skipping report for frame ", report.presentId));
+        if (pacer)
+          pacer->notifyGpuPresentEnd(frameId);
         continue;
       }
 
@@ -1669,6 +1668,9 @@ namespace dxvk {
           report.timeDomain, report.timeDomainId, time.time,
           VK_TIME_DOMAIN_QUERY_PERFORMANCE_COUNTER_KHR, 0u);
       }
+
+      if (pacer)
+        pacer->notifyGpuPresentEnd(report.presentId, time.time, time.stage, report.timeDomain, report.timeDomainId, reportTimeQpc);
 
       if (reportTimeLocal) {
         m_timingMode.lastFrameId = report.presentId;
@@ -1773,7 +1775,7 @@ namespace dxvk {
     uint64_t calibrationAgeNs = std::chrono::duration_cast<std::chrono::nanoseconds>(
       dxvk::high_resolution_clock::now() - m_timingDomains->lastCalibration).count();
 
-    if (calibrationAgeNs > 1000000000ull && !recalibrateTimeDomains())
+    if (calibrationAgeNs > 100000000ull && !recalibrateTimeDomains())
       return 0u;
 
     // Check whether the source and destination time domains are known
