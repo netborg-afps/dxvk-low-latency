@@ -36,14 +36,19 @@ namespace dxvk {
     void sleepAndBeginFrame(
             uint64_t                  frameId,
             double                    maxFrameRate) override {
-      LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId-1);
-      m->appFinished = high_resolution_clock::now();
-
       // wait for finished rendering of a previous frame, typically the one before last
       m_frameSync.waitRenderFinished(frameId);
       // potentially wait some more if the cpu gets too much ahead
       m_mode->startFrame(frameId);
       m_latencyMarkers.registerFrameStart(frameId);
+    }
+
+    void notifyCpuPresentEnd( uint64_t frameId ) override {
+      LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
+      LatencyMarkers* m_next = m_latencyMarkers.getMarkers(frameId+1);
+      m->appFinished = high_resolution_clock::now();
+      m_next->start = time_point{};
+      _INFO( frameId, " app present" );
     }
 
     // the frame has been displayed to the screen
@@ -188,7 +193,6 @@ namespace dxvk {
 
 
     void notifyCpuPresentBegin( uint64_t frameId ) override { }
-    void notifyCpuPresentEnd( uint64_t frameId ) override { }
     void notifyQueuePresentEnd( uint64_t frameId, VkResult status) override { }
     void notifyGpuExecutionBegin( uint64_t frameId ) override { }
     void discardTimings() override { }
