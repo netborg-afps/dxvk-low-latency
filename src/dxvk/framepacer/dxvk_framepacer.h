@@ -2,6 +2,7 @@
 
 #include "dxvk_framepacer_mode.h"
 #include "dxvk_frame_sync.h"
+#include "dxvk_frame_mapping.h"
 #include "dxvk_latency_markers.h"
 #include "dxvk_latency_stats.h"
 #include "dxvk_jitter_stats.h"
@@ -189,9 +190,22 @@ namespace dxvk {
     }
 
     int64_t registerExternalId( uint64_t externalId, const FrameInfo& frameInfo ) {
+      uint64_t cpuId = m_frameSync.m_fenceAppFinished.value() + 1;
 
-      return std::numeric_limits<int64_t>::max();
+      uint64_t id = m_frameMapping.getFrameId(cpuId);
+      if (id && id != externalId) {
+        _WARN("Application reports different external-ids mapped to the same internal id ", cpuId );
+        return std::numeric_limits<int64_t>::max();
+      }
 
+      if (!id) {
+        m_frameMapping.registerMapping( cpuId, externalId );
+        LatencyMarkers* m = m_latencyMarkers.getMarkers(cpuId);
+        m->start = frameInfo.start_t;
+        m->nvApi = frameInfo.nvApi;
+      }
+
+      return cpuId - externalId;
     }
 
     VkQueryPool* allocSubmitQueryPool() override
@@ -215,8 +229,6 @@ namespace dxvk {
     bool needsAutoMarkers() override {
       return true;
     }
-
-    FrameSync m_frameSync;
 
 
     // not implemented methods
@@ -330,6 +342,8 @@ namespace dxvk {
 
     std::unique_ptr<FramePacerMode> m_mode;
     LatencyMarkersStorage m_latencyMarkers;
+    FrameMapping m_frameMapping;
+    FrameSync m_frameSync;
 
     std::array< std::atomic< uint16_t >, 8 > m_gpuStarts = { };
     static constexpr uint16_t queueSubmitBit = 1;
