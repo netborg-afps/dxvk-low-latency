@@ -111,11 +111,31 @@ namespace dxvk::sync {
     }
     
     void wait(uint64_t value) {
-      uint64_t cur = m_value.load(std::memory_order_acquire);
-      while (cur < value) {
+      uint64_t cur;
+      while (value > (cur = m_value.load(std::memory_order_acquire))) {
         WaitOnAddress(&m_value, &cur, sizeof(uint64_t), INFINITE);
-        cur = m_value.load(std::memory_order_acquire);
       }
+    }
+
+    bool wait(uint64_t value, DWORD timeout) {
+      using time_point = std::chrono::steady_clock::time_point;
+      using namespace std::chrono;
+
+      uint64_t cur = m_value.load(std::memory_order_acquire);
+      if (cur >= value)
+        return true;
+
+      time_point t = steady_clock::now();
+      time_point target = t + milliseconds(timeout);
+
+      while (cur < value && t < target) {
+        DWORD remaining = duration_cast<milliseconds>(target-t).count();
+        WaitOnAddress(&m_value, &cur, sizeof(uint64_t), remaining);
+        cur = m_value.load(std::memory_order_acquire);
+        t = steady_clock::now();
+      }
+
+      return cur >= value;
     }
 
   private:
@@ -235,6 +255,16 @@ namespace dxvk::sync {
 
       std::unique_lock<dxvk::mutex> lock(m_mutex);
       m_cond.wait(lock, [this, value] {
+        return value <= m_value.load(std::memory_order_acquire);
+      });
+    }
+
+    bool wait(uint64_t value, DWORD timeout) {
+      if (value <= m_value.load(std::memory_order_acquire))
+        return true;
+
+      std::unique_lock<dxvk::mutex> lock(m_mutex);
+      return m_cond.wait_for(lock, std::chrono::milliseconds(timeout), [this, value] {
         return value <= m_value.load(std::memory_order_acquire);
       });
     }
