@@ -37,13 +37,13 @@ namespace dxvk {
   class JitterStats {
   public:
 
-    void push( const JitterEntry&& entry ) {
+    void push( const JitterEntry& entry ) {
 
       int16_t newIndex = (m_curIndex + 1) & 1;
       JitterTotal& oldTotal = m_jitter[m_curIndex];
       JitterTotal& newTotal = m_jitter[newIndex];
 
-      m_queue.push_back( std::move(entry) );
+      m_queue.push_back( entry );
 
       newTotal.count     = oldTotal.count + 1;
       newTotal.frametime = oldTotal.frametime + entry.frametime;
@@ -72,7 +72,7 @@ namespace dxvk {
 
   private:
 
-    inline static constexpr int32_t m_duration = 30000;
+    inline static constexpr int32_t m_duration = 5000;
     std::deque<JitterEntry> m_queue;
 
     JitterTotal m_jitter[2] = { };
