@@ -105,6 +105,9 @@ namespace dxvk {
     /// Whether to ignore all calls to Flush() without signal
     bool ignoreExplicitFlush = false;
 
+    /// Select either custom or vendor supplied
+    bool useCustomReflex = true;
+
     /// Shader dump path
     std::string shaderDumpPath;
   };

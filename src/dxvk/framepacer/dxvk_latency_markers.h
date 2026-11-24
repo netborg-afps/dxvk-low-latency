@@ -13,6 +13,19 @@ namespace dxvk {
 
   class FramePacer;
 
+  struct NvApiMarkers {
+
+    using time_point = high_resolution_clock::time_point;
+
+    time_point simulationStart;
+    time_point simulationEnd;
+    time_point renderSubmitStart;
+    time_point renderSubmitEnd;
+    time_point presentStart;
+    time_point presentEnd;
+
+  };
+
 
   struct LatencyMarkers {
 
@@ -26,6 +39,8 @@ namespace dxvk {
 
     time_point appFinished;
     time_point csFinished;
+
+    NvApiMarkers nvApi;
 
     std::vector<time_point> gpuReady;
     std::vector<time_point> gpuSubmit;
@@ -63,8 +78,7 @@ namespace dxvk {
     friend class FramePacer;
   public:
 
-    LatencyMarkersStorage( uint64_t firstFrameId )
-    : m_firstFrameId(firstFrameId) {
+    LatencyMarkersStorage( uint64_t firstFrameId ) {
       LatencyMarkers* markers = getMarkers(firstFrameId);
       markers->start = high_resolution_clock::now();
     }
@@ -101,7 +115,6 @@ namespace dxvk {
     // simple modulo hash mapping is used for frameIds. They are expected to monotonically increase by one.
     // only store a small number of past frames to keep the memory footprint low.
     static constexpr uint16_t m_numMarkers = 8;
-    const uint64_t m_firstFrameId;
     std::array<LatencyMarkers, m_numMarkers> m_markers = { };
     LatencyMarkersTimeline m_timeline;
 

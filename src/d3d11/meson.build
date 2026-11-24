@@ -32,6 +32,7 @@ d3d11_src = [
   'd3d11_context_ext.cpp',
   'd3d11_context_imm.cpp',
   'd3d11_cuda.cpp',
+  'd3d11_custom_reflex_device.cpp',
   'd3d11_depth_stencil.cpp',
   'd3d11_device.cpp',
   'd3d11_enums.cpp',

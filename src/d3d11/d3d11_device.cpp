@@ -3806,6 +3806,7 @@ namespace dxvk {
     m_d3d11Reflex   (this, &m_d3d11Device),
     m_d3d11on12     (this, &m_d3d11Device, pD3D12Device, pD3D12Queue),
     m_metaDevice    (this),
+    m_d3d11CustomReflex (this, &m_d3d11Device),
     m_dxvkFactory   (this, &m_d3d11Device),
     m_destructionNotifier(this) {
     m_vendorHacks.igd10iumd64 = initVendorHacks();
@@ -3878,7 +3879,10 @@ namespace dxvk {
     }
 
     if (riid == __uuidof(ID3DLowLatencyDevice)) {
-      *ppvObject = ref(&m_d3d11Reflex);
+      if (m_d3d11Device.GetOptions()->useCustomReflex)
+        *ppvObject = ref(&m_d3d11CustomReflex);
+      else
+        *ppvObject = ref(&m_d3d11Reflex);
       return S_OK;
     }
 

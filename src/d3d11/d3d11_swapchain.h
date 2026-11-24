@@ -178,6 +178,7 @@ namespace dxvk {
     VkSurfaceFormatKHR GetSurfaceFormat(DXGI_FORMAT Format);
 
     Com<D3D11ReflexDevice> GetReflexDevice();
+    Com<D3D11CustomReflexDevice> GetCustomReflexDevice();
 
     VkRect2D ComputeSrcPresentRect() const;
 
