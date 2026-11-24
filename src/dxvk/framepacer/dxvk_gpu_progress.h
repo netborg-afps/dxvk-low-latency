@@ -103,34 +103,23 @@ namespace dxvk {
     }
 
 
-    void waitUntil( uint64_t frameId, int32_t targetGpuRuntime, int32_t cpuUntilGpuStart, time_point maxSleep, ThreadedSleep& threadedSleep ) const {
+    void waitUntil( uint64_t frameId, int32_t targetGpuRuntime, time_point maxSleep ) const {
       // GPU progress is measured as if the submits would be processed as late as possible
       // on the GPU while assuming the frame to be minimum latency since gpuStart.
       // This is necessary for this to work reliably accross games.
 
       using std::chrono::duration_cast;
       const Data* data = getConstData(frameId);
-      const LatencyMarkers* m = m_markerStorage->getConstMarkers(frameId);
 
-      // Sleep until the earlierst possible time stamp
-
-      auto now = high_resolution_clock::now();
-      int32_t totalTime = duration_cast<microseconds>(now - m->start).count();
-      cpuUntilGpuStart = std::max( cpuUntilGpuStart, LatencyMarkers::diff(m->gpuStart, m->start) );
-      int32_t sleepUntil = cpuUntilGpuStart + targetGpuRuntime;
-      int32_t sleepDelay = std::max( 0, sleepUntil - totalTime );
-
-      Sleep::TimePoint t = now + microseconds(sleepDelay);
-      t = std::min(t, maxSleep);
-      threadedSleep.sleepUntil( t );
-
+      // NOTE: be sure to sleep for GPU before this already
+      // this is just additional wait in case the GPU is slower than expected.
       // For the remainder of the frame we check the progress by polling.
       // Usually this will take far less than a millisecond, with the exception
       // of very slow frames where GPU progress is stalled.
 
       while (true) {
 
-        int32_t gpuRuntime = getGpuRuntime( frameId, cpuUntilGpuStart );
+        int32_t gpuRuntime = getGpuRuntime( frameId );
         if (gpuRuntime >= targetGpuRuntime)
           break;
         if (data->isFinished || data->reachedMaxSubmits)
@@ -144,7 +133,7 @@ namespace dxvk {
     }
 
 
-    int32_t getGpuRuntime( uint64_t frameId, int32_t cpuUntilGpuStart ) const {
+    int32_t getGpuRuntime( uint64_t frameId ) const {
 
       using std::chrono::duration_cast;
       const Data* data = getConstData(frameId);
@@ -152,14 +141,12 @@ namespace dxvk {
       const LatencyMarkers* m = m_markerStorage->getConstMarkers(frameId);
 
       auto now = high_resolution_clock::now();
-      int32_t curTime = duration_cast<microseconds>(now - m->start).count();
+      int32_t curTime = duration_cast<microseconds>(now - m->gpuProgressStart).count();
 
       int32_t gpuRuntime = gpuTime.runtime;
       if (gpuTime.curSubmitStart != 0)
         gpuRuntime += curTime - gpuTime.curSubmitStart;
 
-      int32_t gpuIdle = curTime - gpuRuntime;
-      gpuRuntime -= std::max( 0, cpuUntilGpuStart - gpuIdle );
       return gpuRuntime;
 
     }
@@ -186,7 +173,7 @@ namespace dxvk {
           data->queueSubmitMarkers[submitId] );
 
       // store the starting timestamp this way so we can use an atomic
-      int32_t submitStart = duration_cast<microseconds>(t - m->start).count();
+      int32_t submitStart = duration_cast<microseconds>(t - m->gpuProgressStart).count();
       gpuRuntime.curSubmitStart = submitStart;
       data->gpuRuntime.store( gpuRuntime );
 
@@ -200,7 +187,7 @@ namespace dxvk {
       Data* data = getData(frameId);
       GpuRuntime gpuRuntime = data->gpuRuntime.load();
 
-      int32_t submitEnd = duration_cast<microseconds>(t - m->start).count();
+      int32_t submitEnd = duration_cast<microseconds>(t - m->gpuProgressStart).count();
       int32_t diff = submitEnd - gpuRuntime.curSubmitStart;
       gpuRuntime.runtime += diff;
       gpuRuntime.curSubmitStart = 0;

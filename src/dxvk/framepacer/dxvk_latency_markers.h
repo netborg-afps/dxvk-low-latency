@@ -31,6 +31,8 @@ namespace dxvk {
     std::vector<time_point> gpuSubmit;
     std::vector<time_point> gpuQueueSubmit;
 
+    time_point gpuProgressStart;
+
     int32_t getPresentationLatency() const {
       // due to different clock sources, values sometimes can be negative
       int32_t presentationLatency = diff(end, gpuFinished);

@@ -98,12 +98,6 @@ namespace dxvk {
       SyncProps props = getSyncPrediction();
       int32_t targetGpuTime = props.optimizedGpuTime - props.cpuUntilGpuStart + m_lowLatencyOffset;
 
-      if (m_mode == LOW_LATENCY_VRR || m_mode == LOW_LATENCY_VRR_PRESENT_TIMING) {
-        int32_t vrrDelay = getVrrDelay( frameId, props, now );
-        int32_t vrrGpuTime = vrrDelay - std::max( LatencyMarkers::diff(m->gpuStart, lastFrameStart), props.cpuUntilGpuStart );
-        targetGpuTime = std::max( targetGpuTime, vrrGpuTime );
-      }
-
       if (targetGpuTime <= 0) {
         // we don't track gpu progress, because we start earlier than
         // when the first submission might be processed by the gpu.
@@ -119,10 +113,12 @@ namespace dxvk {
       time_point lastFrameFinishPrediction;
 
       if (targetGpuTime < props.optimizedGpuTime) {
+        int32_t delay = getGpuDelay( props, m, now, lastFrameStart );
+        sleepFor( now, delay );
         int32_t maxDelay = std::max( m_fpsLimitFrametime.load(), 20000 );
         time_point maxSleep = lastFrameStart + microseconds(maxDelay);
 
-        m_gpuProgress.waitUntil( frameId-1, targetGpuTime, props.cpuUntilGpuStart, maxSleep, m_threadedSleep );
+        m_gpuProgress.waitUntil( frameId-1, targetGpuTime, maxSleep );
         lastFrameFinishPrediction = high_resolution_clock::now()
           + microseconds(props.optimizedGpuTime - targetGpuTime);
       }
@@ -130,11 +126,17 @@ namespace dxvk {
         m_frameSync->m_fenceGpuFinished.wait( frameId-1 );
       }
 
-      props = getSyncPrediction();
-      now = high_resolution_clock::now();
-      int32_t delay = getFpsLimiterDelay( lastFrameStart, now );
-      delay = std::max( delay, getVrrDelay( frameId, props, now, lastFrameFinishPrediction ) );
-      sleepFor( now, delay );
+      // react to newer v-blank info or newer gpu completion if available
+
+      for (int i=0; i<2; ++i ) {
+        props = getSyncPrediction();
+        now = high_resolution_clock::now();
+        int32_t delay = getFpsLimiterDelay( lastFrameStart, now );
+        delay = std::max( delay, getVrrDelay( frameId, props, now, lastFrameFinishPrediction ) );
+        if (i==0)
+          delay *= 0.97;
+        sleepFor( now, delay );
+      }
 
     }
 
