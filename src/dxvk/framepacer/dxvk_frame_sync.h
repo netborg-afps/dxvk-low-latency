@@ -12,6 +12,9 @@ namespace dxvk {
     void waitRenderFinished( uint64_t frameId ) {
       if (m_waitIsActive) m_fenceGpuFinished.wait(frameId-m_waitLatency); }
 
+    void waitRenderFinished( uint64_t frameId, DWORD timeout ) {
+      if (m_waitIsActive) m_fenceGpuFinished.wait(frameId-m_waitLatency, timeout); }
+
     void signalRenderFinished( uint64_t frameId ) {
       if (m_signalIsActive) m_fenceGpuFinished.signal(frameId); }
 
@@ -35,7 +38,7 @@ namespace dxvk {
 
     std::atomic< bool > m_waitIsActive   = { true };
     std::atomic< bool > m_signalIsActive = { true };
-    std::atomic< int32_t > m_waitLatency = { 2 };
+    int32_t m_waitLatency = { 2 };
 
   };
 
