@@ -275,7 +275,7 @@ namespace dxvk {
         e.appLatency = std::abs( LatencyMarkers::diff( m->appFinished, m->start )
                                - LatencyMarkers::diff( m_prev->appFinished, m_prev->start ) );
 
-        m_jitterStats.push( std::move(e) );
+        m_jitterStats.push( e );
       }
 
       // will be re-enabled for VK_EXT_present_timing, but for now this isn't accurate enough

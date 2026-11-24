@@ -98,7 +98,7 @@ namespace dxvk {
 
     // simple modulo hash mapping is used for frameIds. They are expected to monotonically increase by one.
     // only store a small number of past frames to keep the memory footprint low.
-    static constexpr uint16_t m_numMarkers = 4;
+    static constexpr uint16_t m_numMarkers = 8;
     const uint64_t m_firstFrameId;
     std::array<LatencyMarkers, m_numMarkers> m_markers = { };
     LatencyMarkersTimeline m_timeline;
