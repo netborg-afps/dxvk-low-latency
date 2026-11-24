@@ -18,12 +18,16 @@ namespace dxvk {
     void signalFrameFinished( uint64_t frameId ) {
       if (m_signalIsActive) m_fenceFrameFinished.signal(frameId); }
 
+    void signalAppFinished( uint64_t frameId ) {
+      if (m_signalIsActive) m_fenceAppFinished.signal(frameId); }
+
     void signalGpuStart( uint64_t frameId ) {
       if (m_signalIsActive) m_fenceGpuStart.signal(frameId); }
 
     void signalCsFinished( uint64_t frameId ) {
       if (m_signalIsActive) m_fenceCsFinished.signal(frameId); }
 
+    sync::Fence m_fenceAppFinished;
     sync::Fence m_fenceGpuStart;
     sync::Fence m_fenceGpuFinished;
     sync::Fence m_fenceFrameFinished;
