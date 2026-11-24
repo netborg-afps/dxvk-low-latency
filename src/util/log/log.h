@@ -7,6 +7,15 @@
 
 #include "../thread.h"
 
+//#define PACER_DEBUG
+#ifdef PACER_DEBUG
+#define _INFO(...) Logger::info( str::format(__VA_ARGS__) )
+#define _WARN(...) Logger::warn( str::format(__VA_ARGS__) )
+#else
+#define _INFO(...) void()
+#define _WARN(...) void()
+#endif
+
 namespace dxvk {
   
   enum class LogLevel : uint32_t {

@@ -188,6 +188,7 @@ namespace dxvk {
         alignment += diff;
       }
 
+      // write pacing data into sync properties to lookup during sleep
 
       SyncProps& props = m_props[frameId % m_props.size()];
       props.gpuSync = gpuRun[numLoop-1];
@@ -195,6 +196,10 @@ namespace dxvk {
       props.cpuUntilGpuStart = props.cpuUntilGpuSync - props.gpuSync;
       props.optimizedGpuTime = optimizedGpuTime;
       props.isOutlier = isOutlier(frameId);
+
+      _INFO( "props.cpuUntilGpuStart = ", props.cpuUntilGpuStart );
+      _INFO( "props.optimizedGpuTime = ", props.optimizedGpuTime );
+      _INFO( "props.isOutlier = ", props.isOutlier );
 
       if (m_mode == LOW_LATENCY_VRR) {
         // implicitly derive v-blank timings
