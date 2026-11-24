@@ -283,6 +283,15 @@ namespace dxvk {
       hr = E_FAIL;
     }
 
+    if (m_renderLatencyHud)
+      m_renderLatencyHud->updateLatencyTracker(m_latency);
+
+    if (m_jitterHud)
+      m_jitterHud->updateLatencyTracker(m_latency);
+
+    if (m_latencyDetailsHud)
+      m_latencyDetailsHud->updateLatencyTracker(m_latency);
+
     // Ensure to synchronize and release the frame latency semaphore
     // even if presentation failed with STATUS_OCCLUDED, or otherwise
     // applications using the semaphore may deadlock. This works because
@@ -299,15 +308,6 @@ namespace dxvk {
 
     if (m_latencyHud)
       m_latencyHud->accumulateStats(latencyStats);
-
-    if (m_renderLatencyHud)
-      m_renderLatencyHud->updateLatencyTracker(m_latency);
-
-    if (m_jitterHud)
-      m_jitterHud->updateLatencyTracker(m_latency);
-
-    if (m_latencyDetailsHud)
-      m_latencyDetailsHud->updateLatencyTracker(m_latency);
 
     return hr;
   }
