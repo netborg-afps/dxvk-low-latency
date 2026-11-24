@@ -36,11 +36,18 @@ namespace dxvk {
     void sleepAndBeginFrame(
             uint64_t                  frameId,
             double                    maxFrameRate) override {
+      LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
+      LatencyMarkers* m_prev = m_latencyMarkers.getMarkers(frameId-1);
+      
+      sleep( frameId, m_prev->start );
+      m->start = high_resolution_clock::now();
+    }
+
+    void sleep( uint64_t frameId, time_point lastFrameStart ) {
       // wait for finished rendering of a previous frame, typically the one before last
       m_frameSync.waitRenderFinished(frameId);
       // potentially wait some more if the cpu gets too much ahead
-      m_mode->startFrame(frameId);
-      m_latencyMarkers.registerFrameStart(frameId);
+      m_mode->startFrame(frameId, lastFrameStart);
     }
 
     void notifyCpuPresentEnd( uint64_t frameId ) override {

@@ -69,17 +69,6 @@ namespace dxvk {
 
     ~LatencyMarkersStorage() { }
 
-    void registerFrameStart( uint64_t frameId ) {
-      if (unlikely(frameId <= m_timeline.frameFinished.load())) {
-        Logger::warn( str::format("internal error during registerFrameStart: expected frameId=",
-          m_timeline.frameFinished.load()+1, ", got: ", frameId) );
-      }
-      auto now = high_resolution_clock::now();
-
-      LatencyMarkers* markers = getMarkers(frameId);
-      markers->start = now;
-    }
-
     void registerFrameEnd( uint64_t frameId, high_resolution_clock::time_point t ) {
       if (unlikely(frameId <= m_timeline.frameFinished.load())) {
         Logger::warn( str::format("internal error during registerFrameEnd: expected frameId=",
