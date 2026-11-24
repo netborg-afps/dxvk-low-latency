@@ -21,7 +21,7 @@ namespace dxvk {
 
     ~MinLatencyMode() {}
 
-    void startFrame( uint64_t frameId ) override {
+    void startFrame( uint64_t frameId, time_point lastFrameStart ) override {
 
       Sleep::TimePoint now = high_resolution_clock::now();
       int32_t frametime = std::chrono::duration_cast<std::chrono::microseconds>(

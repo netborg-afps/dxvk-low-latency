@@ -73,7 +73,7 @@ namespace dxvk {
 
     ~LowLatencyMode() {}
 
-    void startFrame( uint64_t frameId ) override {
+    void startFrame( uint64_t frameId, time_point lastFrameStart ) override {
 
       using std::chrono::duration_cast;
 
@@ -90,7 +90,7 @@ namespace dxvk {
 
       if (finishedId == frameId-1) {
         // we are the only in-flight frame
-        int32_t delay = getFpsLimiterDelay( m, now );
+        int32_t delay = getFpsLimiterDelay( lastFrameStart, now );
         sleepFor( now, delay );
         return;
       }
@@ -100,7 +100,7 @@ namespace dxvk {
 
       if (m_mode == LOW_LATENCY_VRR || m_mode == LOW_LATENCY_VRR_PRESENT_TIMING) {
         int32_t vrrDelay = getVrrDelay( frameId, props, now );
-        int32_t vrrGpuTime = vrrDelay - std::max( LatencyMarkers::diff(m->gpuStart, m->start), props.cpuUntilGpuStart );
+        int32_t vrrGpuTime = vrrDelay - std::max( LatencyMarkers::diff(m->gpuStart, lastFrameStart), props.cpuUntilGpuStart );
         targetGpuTime = std::max( targetGpuTime, vrrGpuTime );
       }
 
@@ -108,8 +108,8 @@ namespace dxvk {
         // we don't track gpu progress, because we start earlier than
         // when the first submission might be processed by the gpu.
         // this means, this path is mostly taken when being cpu limited.
-        int32_t delay = getGpuDelay( props, m, now );
-        delay = std::max( delay, getFpsLimiterDelay( m, now ) );
+        int32_t delay = getGpuDelay( props, m, now, lastFrameStart );
+        delay = std::max( delay, getFpsLimiterDelay( lastFrameStart, now ) );
         delay = std::max( delay, getVrrDelay( frameId, props, now ) );
 
         sleepFor( now, delay );
@@ -120,7 +120,7 @@ namespace dxvk {
 
       if (targetGpuTime < props.optimizedGpuTime) {
         int32_t maxDelay = std::max( m_fpsLimitFrametime.load(), 20000 );
-        time_point maxSleep = m->start + microseconds(maxDelay);
+        time_point maxSleep = lastFrameStart + microseconds(maxDelay);
 
         m_gpuProgress.waitUntil( frameId-1, targetGpuTime, props.cpuUntilGpuStart, maxSleep, m_threadedSleep );
         lastFrameFinishPrediction = high_resolution_clock::now()
@@ -132,7 +132,7 @@ namespace dxvk {
 
       props = getSyncPrediction();
       now = high_resolution_clock::now();
-      int32_t delay = getFpsLimiterDelay( m, now );
+      int32_t delay = getFpsLimiterDelay( lastFrameStart, now );
       delay = std::max( delay, getVrrDelay( frameId, props, now, lastFrameFinishPrediction ) );
       sleepFor( now, delay );
 
@@ -293,11 +293,11 @@ namespace dxvk {
     }
 
 
-    int32_t getGpuDelay( const SyncProps& props, const LatencyMarkers* m, time_point now ) const {
+    int32_t getGpuDelay( const SyncProps& props, const LatencyMarkers* m, time_point now, time_point lastStart ) const {
 
-      int32_t lastFrameStart = std::chrono::duration_cast<microseconds>( m->start - now ).count();
+      int32_t lastFrameStart = std::chrono::duration_cast<microseconds>( lastStart - now ).count();
       int32_t gpuReadyPrediction = lastFrameStart
-        + std::max( props.cpuUntilGpuStart, LatencyMarkers::diff(m->gpuStart, m->start))
+        + std::max( props.cpuUntilGpuStart, LatencyMarkers::diff(m->gpuStart, lastStart))
         + props.optimizedGpuTime;
 
       int32_t gpuDelay = gpuReadyPrediction - props.cpuUntilGpuStart;
@@ -306,9 +306,9 @@ namespace dxvk {
     }
 
 
-    int32_t getFpsLimiterDelay( const LatencyMarkers* m, time_point now ) const {
+    int32_t getFpsLimiterDelay( time_point lastFrameStart, time_point now ) const {
 
-      int32_t frametime = std::chrono::duration_cast<microseconds>( now - m->start ).count();
+      int32_t frametime = std::chrono::duration_cast<microseconds>( now - lastFrameStart ).count();
 
       // set an automatic fps limit in present_timing mode if no fps limit got set
       // this is needed to provide a good balanced default to not make the presentation

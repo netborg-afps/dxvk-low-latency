@@ -13,10 +13,9 @@ namespace dxvk {
    */
 
   class FramePacerMode {
-
-    using time_point = high_resolution_clock::time_point;
-
   public:
+  
+    using time_point = high_resolution_clock::time_point;
 
     enum Mode {
       MAX_FRAME_LATENCY = 0,
@@ -37,7 +36,7 @@ namespace dxvk {
 
     virtual ~FramePacerMode() { }
 
-    virtual void startFrame( uint64_t frameId ) { }
+    virtual void startFrame( uint64_t frameId, time_point lastFrameStart ) { }
     virtual void endFrame( uint64_t frameId ) { }
 
     virtual void finishRender( uint64_t frameId ) { }
@@ -52,8 +51,10 @@ namespace dxvk {
       { return m_presentMode; }
 
     virtual void setTargetFrameRate( double frameRate ) {
-      if (!m_fpsLimitEnvOverride && frameRate > 1.0)
+      if (!m_fpsLimitEnvOverride && frameRate > 1.0) {
         m_fpsLimitFrametime.store( 1'000'000/frameRate );
+        Logger::info( str::format( "fps limit set to ", frameRate, " fps" ));
+      }
     }
 
     const Mode m_mode;
@@ -126,6 +127,7 @@ namespace dxvk {
       return;
 
     m_fpsLimitFrametime = 1'000'000/fpsLimit;
+    Logger::info( str::format( "fps limit set to ", fpsLimit, " fps (DXVK_FRAME_RATE)" ));
   }
 
 }
