@@ -38,7 +38,7 @@ namespace dxvk {
             double                    maxFrameRate) override {
       LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
       LatencyMarkers* m_prev = m_latencyMarkers.getMarkers(frameId-1);
-      
+
       sleep( frameId, m_prev->start );
       m->start = high_resolution_clock::now();
     }
@@ -53,8 +53,11 @@ namespace dxvk {
     void notifyCpuPresentEnd( uint64_t frameId ) override {
       LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
       LatencyMarkers* m_next = m_latencyMarkers.getMarkers(frameId+1);
-      m->appFinished = high_resolution_clock::now();
-      m_next->start = time_point{};
+
+      auto now = high_resolution_clock::now();
+      m->appFinished = now;
+      m_next->start = time_point {};
+      m_next->gpuProgressStart = now;
       _INFO( frameId, " app present" );
     }
 
