@@ -616,8 +616,14 @@ namespace dxvk {
     m_latency = m_device->createLatencyTracker(m_presenter);
     m_presenter->registerLatencyTracker(m_latency);
 
-    Com<D3D11ReflexDevice> reflex = GetReflexDevice();
-    reflex->RegisterLatencyTracker(m_latency);
+    if (m_parent->GetOptions()->useCustomReflex) {
+      Com<D3D11CustomReflexDevice> reflex = GetCustomReflexDevice();
+      if (FramePacer* pacer = dynamic_cast<FramePacer*> (m_latency.ptr()))
+        reflex->RegisterFramePacer(pacer);
+    } else {
+      Com<D3D11ReflexDevice> reflex = GetReflexDevice();
+      reflex->RegisterLatencyTracker(m_latency);
+    }
   }
 
 
@@ -730,8 +736,14 @@ namespace dxvk {
       ctx->endLatencyTracking(cLatency);
     });
 
-    Com<D3D11ReflexDevice> reflex = GetReflexDevice();
-    reflex->UnregisterLatencyTracker(m_latency);
+    if (m_parent->GetOptions()->useCustomReflex) {
+      Com<D3D11CustomReflexDevice> reflex = GetCustomReflexDevice();
+      if (FramePacer* pacer = dynamic_cast<FramePacer*> (m_latency.ptr()))
+        reflex->UnregisterFramePacer(pacer);
+    } else {
+      Com<D3D11ReflexDevice> reflex = GetReflexDevice();
+      reflex->UnregisterLatencyTracker(m_latency);
+    }
   }
 
 
@@ -793,6 +805,14 @@ namespace dxvk {
     m_parent->QueryInterface(__uuidof(ID3DLowLatencyDevice), reinterpret_cast<void**>(&llDevice));
 
     return static_cast<D3D11ReflexDevice*>(llDevice.ptr());
+  }
+
+
+  Com<D3D11CustomReflexDevice> D3D11SwapChain::GetCustomReflexDevice() {
+    Com<ID3DLowLatencyDevice> llDevice;
+    m_parent->QueryInterface(__uuidof(ID3DLowLatencyDevice), reinterpret_cast<void**>(&llDevice));
+
+    return static_cast<D3D11CustomReflexDevice*>(llDevice.ptr());
   }
 
 

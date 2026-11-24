@@ -34,6 +34,9 @@ namespace dxvk::hud {
           HudRenderer&        renderer,
           HudPos              position) {
 
+    if (m_latency.empty())
+      return position;
+
     position.y += 12;
     renderer.drawText(16, position, 0xff4040ffu, "Render latency:");
     renderer.drawText(16, { position.x + 195, position.y },
@@ -89,6 +92,9 @@ namespace dxvk::hud {
     const HudOptions&         options,
           HudRenderer&        renderer,
           HudPos              position) {
+
+    if (m_frametime.empty())
+      return position;
 
     constexpr int w = 12;
     position.y += 12;
@@ -172,6 +178,9 @@ namespace dxvk::hud {
     const HudOptions&         options,
           HudRenderer&        renderer,
           HudPos              position) {
+
+    if (m_gpuP50.empty())
+      return position;
 
     constexpr int w = 12;
     position.y += 12;

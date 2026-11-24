@@ -30,12 +30,21 @@ namespace dxvk {
     using time_point   = high_resolution_clock::time_point;
   public:
 
+    struct FrameInfo {
+      uint64_t externalId;
+      time_point start_t;
+      NvApiMarkers nvApi;
+    };
+
     FramePacer( DxvkDevice* device, const DxvkOptions& options, uint64_t firstFrameId );
     ~FramePacer();
 
     void sleepAndBeginFrame(
             uint64_t                  frameId,
             double                    maxFrameRate) override {
+      if (m_reflexEnabled.load( std::memory_order_acquire ))
+        return;
+
       LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
       LatencyMarkers* m_prev = m_latencyMarkers.getMarkers(frameId-1);
 
@@ -44,6 +53,11 @@ namespace dxvk {
     }
 
     void sleep( uint64_t frameId, time_point lastFrameStart ) {
+
+      // enable it with the next commit(s)
+      if (m_reflexEnabled.load( std::memory_order_acquire ))
+        return;
+
       // wait for finished rendering of a previous frame, typically the one before last
       m_frameSync.waitRenderFinished(frameId);
       // potentially wait some more if the cpu gets too much ahead
@@ -58,7 +72,7 @@ namespace dxvk {
       m->appFinished = now;
       m_next->start = time_point {};
       m_next->gpuProgressStart = now;
-      _INFO( frameId, " app present" );
+      m_frameSync.signalAppFinished( frameId );
     }
 
     // the frame has been displayed to the screen
@@ -174,6 +188,12 @@ namespace dxvk {
       }
     }
 
+    int64_t registerExternalId( uint64_t externalId, const FrameInfo& frameInfo ) {
+
+      return std::numeric_limits<int64_t>::max();
+
+    }
+
     VkQueryPool* allocSubmitQueryPool() override
       { return m_calibratedDeviceTimestamps.isEnabled() ? m_queryPools.alloc() : nullptr; }
 
@@ -235,6 +255,7 @@ namespace dxvk {
     std::atomic< bool > m_enabledJitterTracking = { false };
 
     DxvkDevice* m_device;
+    std::atomic< bool > m_reflexEnabled = { false };
 
   private:
 

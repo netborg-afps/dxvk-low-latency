@@ -24,6 +24,7 @@
 #include "d3d11_shader.h"
 #include "d3d11_state.h"
 #include "d3d11_util.h"
+#include "d3d11_custom_reflex_device.h"
 
 namespace dxvk {
   class DxgiAdapter;
@@ -1011,7 +1012,9 @@ namespace dxvk {
     D3D11ReflexDevice   m_d3d11Reflex;
     D3D11on12Device     m_d3d11on12;
     DXGIDXVKDevice      m_metaDevice;
-    
+
+    D3D11CustomReflexDevice  m_d3d11CustomReflex;
+
     DXGIVkSwapChainFactory   m_dxvkFactory;
 
     D3DDestructionNotifier   m_destructionNotifier;
