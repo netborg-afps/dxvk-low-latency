@@ -265,6 +265,9 @@ namespace dxvk {
 
     VkResult getSubmitQueryPoolResult( VkQueryPool* queryPool, uint64_t* timestamp );
 
+    void setFpsLimit( uint32_t minInterval )
+      { m_mode->setFpsLimit(minInterval); }
+
     int32_t getLatencyAverage() const
       { return m_latencyAverage.getAverage(); }
 

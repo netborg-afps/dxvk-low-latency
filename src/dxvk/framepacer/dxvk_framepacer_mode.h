@@ -51,9 +51,21 @@ namespace dxvk {
       { return m_presentMode; }
 
     virtual void setTargetFrameRate( double frameRate ) {
-      if (!m_fpsLimitEnvOverride && frameRate > 1.0) {
-        m_fpsLimitFrametime.store( 1'000'000/frameRate );
-        Logger::info( str::format( "fps limit set to ", frameRate, " fps" ));
+      if (!m_fpsLimitFrametimeEnv && frameRate > 1.0) {
+        setFpsLimit(1'000'000/frameRate);
+      }
+    }
+
+    void setFpsLimit( uint32_t frametime ) {
+      if (m_fpsLimitFrametimeEnv)
+        return;
+
+      if ((int)frametime != m_fpsLimitFrametime.load(std::memory_order_relaxed)) {
+        m_fpsLimitFrametime.store( frametime, std::memory_order_release );
+        if (frametime)
+          Logger::info( str::format( "fps limit set to ", 1'000'000/frametime, " fps" ));
+        else
+          Logger::info( "fps limit deactivated" );
       }
     }
 
@@ -79,9 +91,10 @@ namespace dxvk {
     const uint64_t          m_firstFrameId;
     LatencyMarkersStorage*  m_latencyMarkers;
     FrameSync*              m_frameSync;
+
     std::atomic<uint32_t>   m_presentMode;
     std::atomic<int32_t>    m_fpsLimitFrametime = { 0 };
-    bool                    m_fpsLimitEnvOverride = { false };
+    int32_t                 m_fpsLimitFrametimeEnv = { 0 };
 
     std::atomic<uint64_t>   m_ptRefreshIntervalUs = { 0 };
 
@@ -122,11 +135,11 @@ namespace dxvk {
     if (!getDoubleFromEnv("DXVK_FRAME_RATE", &fpsLimit))
       return;
 
-    m_fpsLimitEnvOverride = true;
     if (fpsLimit < 1.0)
       return;
 
-    m_fpsLimitFrametime = 1'000'000/fpsLimit;
+    m_fpsLimitFrametimeEnv = (int) (1'000'000/fpsLimit);
+    m_fpsLimitFrametime.store( m_fpsLimitFrametimeEnv );
     Logger::info( str::format( "fps limit set to ", fpsLimit, " fps (DXVK_FRAME_RATE)" ));
   }
 

@@ -1,6 +1,7 @@
 #pragma once
 
 #include "dxvk_framepacer.h"
+#include "dxvk_nvapi_fps_limit_filter.h"
 #include "../util/log/log.h"
 
 
@@ -276,9 +277,13 @@ namespace dxvk {
 
         void setLatencySleepMode( bool lowLatencyEnable, bool lowLatencyBoost, uint32_t minIntervalUs) {
           m_enabled.store( lowLatencyEnable, std::memory_order_release );
-          Rc<FramePacer> pacer = m_pacer;
-          if (pacer)
+          if (Rc<FramePacer> pacer = m_pacer) {
             pacer->m_reflexEnabled.store( lowLatencyEnable, std::memory_order_release );
+            // games (UE5!) seem to spam garbage which we need to filter
+            m_fpsLimitFilter.push(minIntervalUs);
+            uint32_t minInterval = m_fpsLimitFilter.getMinInterval();
+            pacer->setFpsLimit(minInterval);
+          }
         }
 
         void registerPacer(Rc<FramePacer> pacer) {
@@ -301,6 +306,7 @@ namespace dxvk {
 
         std::atomic<int64_t> m_drift = { 0 };
         NvApi_FrameIdMap m_mapping;
+        NvApi_FpsLimitFilter m_fpsLimitFilter;
 
         std::atomic< bool > m_enabled = { false };
 
