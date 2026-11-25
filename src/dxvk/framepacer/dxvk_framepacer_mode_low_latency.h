@@ -78,9 +78,11 @@ namespace dxvk {
       using std::chrono::duration_cast;
 
       if (!m_allowCpuFramesOverlap)
-        m_frameSync->m_fenceCsFinished.wait( frameId-1 );
+        if (!m_frameSync->m_fenceCsFinished.wait( frameId-1, 100 ))
+          return;
 
-      m_frameSync->m_fenceGpuStart.wait( frameId-1 );
+      if (!m_frameSync->m_fenceGpuStart.wait( frameId-1, 125 ))
+        return;
 
       time_point now = high_resolution_clock::now();
       const LatencyMarkers* m = m_latencyMarkers->getConstMarkers(frameId-1);
@@ -110,7 +112,7 @@ namespace dxvk {
         return;
       }
 
-      time_point lastFrameFinishPrediction;
+      time_point lastFrameFinishPrediction {};
 
       if (targetGpuTime < props.optimizedGpuTime) {
         int32_t delay = getGpuDelay( props, m, now, lastFrameStart );
@@ -123,7 +125,7 @@ namespace dxvk {
           + microseconds(props.optimizedGpuTime - targetGpuTime);
       }
       else {
-        m_frameSync->m_fenceGpuFinished.wait( frameId-1 );
+        m_frameSync->m_fenceGpuFinished.wait( frameId-1, 90 );
       }
 
       // react to newer v-blank info or newer gpu completion if available

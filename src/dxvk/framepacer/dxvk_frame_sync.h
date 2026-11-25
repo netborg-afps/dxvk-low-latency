@@ -12,8 +12,8 @@ namespace dxvk {
     void waitRenderFinished( uint64_t frameId ) {
       if (m_waitIsActive) m_fenceGpuFinished.wait(frameId-m_waitLatency); }
 
-    void waitRenderFinished( uint64_t frameId, DWORD timeout ) {
-      if (m_waitIsActive) m_fenceGpuFinished.wait(frameId-m_waitLatency, timeout); }
+    bool waitRenderFinished( uint64_t frameId, DWORD timeout ) {
+      if (m_waitIsActive) return m_fenceGpuFinished.wait(frameId-m_waitLatency, timeout); return false; }
 
     void signalRenderFinished( uint64_t frameId ) {
       if (m_signalIsActive) m_fenceGpuFinished.signal(frameId); }
