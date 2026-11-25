@@ -54,15 +54,11 @@ namespace dxvk {
     }
 
     void sleep( uint64_t frameId, time_point lastFrameStart ) {
-
-      // enable it with the next commit(s)
-      if (m_reflexEnabled.load( std::memory_order_acquire ))
-        return;
-
       // wait for finished rendering of a previous frame, typically the one before last
-      m_frameSync.waitRenderFinished(frameId);
-      // potentially wait some more if the cpu gets too much ahead
-      m_mode->startFrame(frameId, lastFrameStart);
+      if (m_frameSync.waitRenderFinished(frameId, 200)) {
+        // potentially wait some more if the cpu gets too much ahead
+        m_mode->startFrame(frameId, lastFrameStart);
+      }
     }
 
     void notifyCpuPresentEnd( uint64_t frameId ) override {
@@ -181,12 +177,31 @@ namespace dxvk {
 
         gpuExecutionCheckGpuStart(frameId+1, next, t);
 
+        if (unlikely(m->start == time_point{}))
+          _WARN( "m->start == time_point{}" );
         m_latencyAverage.push( LatencyMarkers::diff(m->gpuFinished, m->start) );
         m_latencyMarkers.m_timeline.gpuFinished.store(frameId);
-        m_mode->finishRender(frameId);
+        finishRender(frameId);
         m_frameSync.signalRenderFinished(frameId);
         m_gpuStarts[ (frameId-1) % m_gpuStarts.size() ].store(0);
       }
+    }
+
+    void finishRender( uint64_t frameId ) {
+      if (m_reflexEnabled.load( std::memory_order_acquire )) {
+        uint64_t id = m_frameMapping.getFrameId( frameId );
+        if (id == 0) {
+          _WARN( frameId, " frame not tracked correctly, ignoring. Missing marker? " );
+          return;
+        }
+      }
+      LatencyMarkers* m = m_latencyMarkers.getMarkers(frameId);
+      if (m->start == time_point{}) {
+        _INFO( frameId, " m->start not set, skipping frame analysis \n" );
+        return;
+      }
+      m_mode->finishRender(frameId);
+      _INFO( frameId, " finished render " );
     }
 
     int64_t registerExternalId( uint64_t externalId, const FrameInfo& frameInfo ) {
@@ -296,6 +311,11 @@ namespace dxvk {
       const LatencyMarkers* m_prev2 = m_latencyMarkers.getConstMarkers(frameId-2);
       const LatencyMarkers* m_prev = m_latencyMarkers.getConstMarkers(frameId-1);
       const LatencyMarkers* m = m_latencyMarkers.getConstMarkers(frameId);
+
+      if (m->start == time_point{}) {
+        _WARN( str::format(frameId, " m->start not set, skipping trackStats()") );
+        return;
+      }
 
       if (m_enabledJitterTracking && frameId > m_mode->getFirstFrameId()+2) {
         JitterEntry e;

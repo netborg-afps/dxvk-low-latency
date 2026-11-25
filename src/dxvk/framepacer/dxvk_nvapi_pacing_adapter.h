@@ -186,6 +186,7 @@ namespace dxvk {
                   pacerId + m_drift.load( std::memory_order_acquire ),
                   m_lastEndSleep.load( std::memory_order_acquire ));
                 m_pendingSleep.store( true, std::memory_order_release );
+                _INFO( "sleeping for pacerId ", pacerId, " finished" );
             }
 
             auto t = dxvk::high_resolution_clock::now();
@@ -217,10 +218,10 @@ namespace dxvk {
                         break;
                     }
 
-//                    if (unlikely( !m_pendingSleep.load( std::memory_order_acquire ) ))
-//                        WARN( "Simulation marker without prior sleep. Game doesn't want to get paced? \n" );
+                    if (unlikely( !m_pendingSleep.load( std::memory_order_acquire ) ))
+                        _WARN( "Simulation marker without prior sleep. Game doesn't want to get paced? \n" );
 
-//                    _INFO( "timestamp stored for pacerId %" PRIu64 " \n", pacerId );
+                    _INFO( "timestamp stored for pacerId ", pacerId );
                     m_pendingSleep.store( false, std::memory_order_release );
                     break;
                 }
