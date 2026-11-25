@@ -286,6 +286,7 @@ namespace dxvk::hud {
       = dxvk::high_resolution_clock::now();
 
     std::string m_latency;
+    std::string m_renderLatencyText;
 
   };
 
