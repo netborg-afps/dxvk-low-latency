@@ -22,6 +22,10 @@ namespace dxvk::hud {
 
       int32_t latency = framePacer->getLatencyAverage();
       m_latency = str::format(latency / 1000, ".", (latency/100) % 10, " ms");
+      if (framePacer->m_reflexEnabled.load( std::memory_order_relaxed ))
+        m_renderLatencyText = "Reflex latency:";
+      else
+        m_renderLatencyText = "Render latency:";
     }
 
   }
@@ -38,7 +42,7 @@ namespace dxvk::hud {
       return position;
 
     position.y += 12;
-    renderer.drawText(16, position, 0xff4040ffu, "Render latency:");
+    renderer.drawText(16, position, 0xff4040ffu, m_renderLatencyText);
     renderer.drawText(16, { position.x + 195, position.y },
       0xffffffffu, m_latency);
 
